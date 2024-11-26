@@ -87,6 +87,12 @@ public:
 
         return va;
     }
+
+    void remove_no_flip(Vertex_handle v)
+    {
+
+        this->Base::Ctr::remove(v);
+    }
 };
 
 typedef Custom_Constrained_Delaunay_triangulation_2<Kernel, Tds> CDT; // Defines the CDT type after class
@@ -289,19 +295,23 @@ void processCluster(CDT &cdt, const std::vector<CDT::Face_handle> &cluster)
 
             do
             {
-                if(!cdt.is_infinite(*edgeIt)) {
+                if (!cdt.is_infinite(*edgeIt))
+                {
                     Point p1_inc = edgeIt->first->vertex(cdt.cw(edgeIt->second))->point();
                     Point p2_inc = edgeIt->first->vertex(cdt.ccw(edgeIt->second))->point();
 
-                    if(cdt.is_constrained(*edgeIt)) {
-                      skipEdge = true;
-                      return;
+                    if (cdt.is_constrained(*edgeIt))
+                    {
+                        skipEdge = true;
+                        return;
                     }
-                    else if(!((p1_inc == p1 && p2_inc == p2) || (p1_inc == p2 && p2_inc == p1))) {
-                      unconstrainedEdges.push_back(*edgeIt);
+                    else if (!((p1_inc == p1 && p2_inc == p2) || (p1_inc == p2 && p2_inc == p1)))
+                    {
+                        unconstrainedEdges.push_back(*edgeIt);
                     }
-                    else {
-                      std::cerr << "Skipping shared edge in incident edge collection.\n";
+                    else
+                    {
+                        std::cerr << "Skipping shared edge in incident edge collection.\n";
                     }
                 }
                 // if (edgeCount++ >= maxIncidentEdges) {
@@ -322,12 +332,14 @@ void processCluster(CDT &cdt, const std::vector<CDT::Face_handle> &cluster)
             Point source = e.first->vertex(cdt.cw(e.second))->point();
             Point target = e.first->vertex(cdt.ccw(e.second))->point();
 
-            if (skipEdge) {
+            if (skipEdge)
+            {
                 std::cerr << "Skipping edge due to constraint.\n";
                 return;
             }
 
-            for(const auto &edge : unconstrainedEdges) {
+            for (const auto &edge : unconstrainedEdges)
+            {
                 Point source = edge.first->vertex(cdt.cw(edge.second))->point();
                 Point target = edge.first->vertex(cdt.ccw(edge.second))->point();
                 cdt.insert_constraint(source, target);
@@ -348,7 +360,7 @@ void processCluster(CDT &cdt, const std::vector<CDT::Face_handle> &cluster)
 
             return;
         }
-    }              
+    }
 }
 
 bool checkForCircumcenter(CDT &cdt, typename CDT::Face_handle face)
@@ -477,6 +489,8 @@ bool checkForCircumcenter(CDT &cdt, typename CDT::Face_handle face)
     cdt.remove(cdt.insert_no_flip(v2->point()));
     // cdt.remove(v1);
     // cdt.remove(v2);
+    // cdt.remove_no_flip(v1);
+    // cdt.remove_no_flip(v2);
 
     // std::cout << "draw3" << std::endl;
     // CGAL::draw(cdt);
@@ -498,7 +512,6 @@ bool checkForCircumcenter(CDT &cdt, typename CDT::Face_handle face)
     return true;
 }
 
-
 // Function to insert a point and count the number of obtuse triangles
 template <typename TCDT, typename TPoint>
 int tryPointInsertion(TCDT &cdt, const TPoint &test_point, const Polygon_2 &regionPolygon, bool merge = false, bool circ = false, std::optional<std::vector<CDT::Face_handle>> obtuseCluster = std::nullopt, std::optional<CDT::Face_handle> face = std::nullopt)
@@ -511,7 +524,7 @@ int tryPointInsertion(TCDT &cdt, const TPoint &test_point, const Polygon_2 &regi
     }
     if (circ)
     {
-        // // std::cout << "Checking for circumcenter" << std::endl;
+        // std::cout << "Checking for circumcenter" << std::endl;
         if (checkForCircumcenter(temp_cdt, *face) == false)
         {
             return std::numeric_limits<int>::max();
@@ -679,10 +692,10 @@ void addSteinerPoints(TCDT &cdt, std::vector<TPoint> &steiner_points, const Poly
                 // Try circumcenter method
                 TPoint circumcenter = CGAL::circumcenter(p1, p2, p3);
                 int obtuseAfterCircumcenter = std::numeric_limits<int>::max();
-                if (regionPolygon.bounded_side(circumcenter) != CGAL::ON_UNBOUNDED_SIDE)
-                {
-                    int obtuseAfterCircumcenter = tryPointInsertion<CDT, Point>(cdt, circumcenter, regionPolygon, false, true, std::nullopt, face);
-                }
+                // if (regionPolygon.bounded_side(circumcenter) != CGAL::ON_UNBOUNDED_SIDE)
+                // {
+                //     int obtuseAfterCircumcenter = tryPointInsertion<CDT, Point>(cdt, circumcenter, regionPolygon, false, true, std::nullopt, face);
+                // }
 
                 // Try midpoint of the longest edge
                 TPoint midpoint = getMidpointOfLongestEdge<Point>(p1, p2, p3);

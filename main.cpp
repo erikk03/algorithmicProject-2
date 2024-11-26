@@ -7,23 +7,24 @@
 #include <iostream>
 #include <cmath>
 #include <vector>
-// #include <CGAL/Polygon_2.h>
 #include "includes/triangulation.hpp" // Keep this for the CDT definition and for helper functions
 
 using Kernel = CGAL::Exact_predicates_exact_constructions_kernel;
 using Point = CDT::Point; // Use the Point type from the CDT defined in triangulation.hpp
 namespace pt = boost::property_tree;
-// typedef CGAL::Polygon_2<Kernel> Polygon_2;
 
 int main(int argc, char *argv[])
 {
-    if (argc < 2)
+    if (argc < 5 || std::string(argv[1]) != "-i" || std::string(argv[3]) != "-o")
     {
-        std::cerr << "Please provide the input JSON file as a command-line argument." << std::endl;
+        std::cerr << "Usage: ./opt_triangulation -i /path/to/input.json -o /path/to/output.json" << std::endl;
         return 1;
     }
 
-    std::ifstream inputFile(argv[1]);
+    std::string inputPath = argv[2];
+    std::string outputPath = argv[4];
+
+    std::ifstream inputFile(inputPath);
     if (!inputFile.is_open())
     {
         std::cerr << "Failed to open the input file." << std::endl;
@@ -43,8 +44,11 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    // Parse the input data
     std::string instanceUid = inputData.get<std::string>("instance_uid");
     int numPoints = inputData.get<int>("num_points");
+    bool delaunay = inputData.get<bool>("delaunay");
+    std::string method = inputData.get<std::string>("method");
 
     std::vector<int> pointsX, pointsY, regionBoundary;
     for (const auto &item : inputData.get_child("points_x"))
@@ -71,6 +75,13 @@ int main(int argc, char *argv[])
         additionalConstraints.push_back(constraintPair);
     }
 
+    // Parse algorithm-specific parameters
+    pt::ptree parameters = inputData.get_child("parameters");
+    double alpha = parameters.get<double>("alpha", 1.0);
+    double beta = parameters.get<double>("beta", 1.0);
+    int L = parameters.get<int>("L", 100);
+
+    // Create the region boundary polygon
     Polygon_2 regionPolygon;
     for (int idx : regionBoundary)
     {
@@ -106,30 +117,60 @@ int main(int argc, char *argv[])
         cdt.insert_constraint(Point(pointsX[constraint[0]], pointsY[constraint[0]]),
                               Point(pointsX[constraint[1]], pointsY[constraint[1]]));
     }
-    std::cout << "Triangulation done, adding steiner points and flipping edges..." << std::endl;
+
+    if (delaunay)
+    {
+        std::cout << "Ensuring Delaunay triangulation..." << std::endl;
+        // cdt.make_delaunay();
+    }
+
+    std::cout << "Triangulation done. Starting optimization with method: " << method << "..." << std::endl;
     std::cout << "Number of all triangles at start: " << cdt.number_of_faces() << std::endl;
     std::cout << "Number of obtuse triangles at start: " << countObtuseTriangles<CDT>(cdt, regionPolygon) << std::endl;
 
-    std::vector<Point> steiner_points;
+    if (method == "local")
+    {
+        // std::vector<Point> steiner_points;
 
-    // Add Steiner points for obtuse triangles
-    addSteinerPoints<CDT, Point>(cdt, steiner_points, regionPolygon);
+        // // Add Steiner points for obtuse triangles
+        // addSteinerPoints<CDT, Point>(cdt, steiner_points, regionPolygon);
 
-    // Try to flip edges to make non-obtuse triangles
-    flipEdgesToMakeNonObtuse<CDT>(cdt, regionPolygon);
+        // // Try to flip edges to make non-obtuse triangles
+        // flipEdgesToMakeNonObtuse<CDT>(cdt, regionPolygon);
 
-    std::cout << ">>FINAL RESULTS<<" << std::endl;
+        // localSearchOptimization<CDT>(cdt, regionPolygon, L);
+    }
+    else if (method == "sa")
+    {
+        // simulatedAnnealingOptimization<CDT>(cdt, regionPolygon, alpha, beta, L);
+    }
+    else if (method == "ant")
+    {
+        double xi = parameters.get<double>("xi", 1.0);
+        double psi = parameters.get<double>("psi", 1.0);
+        double lambda = parameters.get<double>("lambda", 0.5);
+        int kappa = parameters.get<int>("kappa", 10);
+        // antColonyOptimization<CDT>(cdt, regionPolygon, alpha, beta, xi, psi, lambda, kappa, L);
+    }
+    else
+    {
+        std::cerr << "Invalid method specified: " << method << std::endl;
+        return 1;
+    }
+
+    //////////// Terminal Results ////////////
     // Count the number of triangles in the triangulation
     int allTriangles = cdt.number_of_faces();
-    std::cout << "All triangles: " << allTriangles << std::endl;
+    std::cout << "Number of all triangles at the end: " << allTriangles << std::endl;
 
     // Count the number of obtuse triangles remaining
     int obtuseCount = countObtuseTriangles<CDT>(cdt, regionPolygon);
-    std::cout << "Obtuse triangles remaining: " << obtuseCount << std::endl;
+    std::cout << "Number of obtuse triangles remaining: " << obtuseCount << std::endl;
+    //////////////////////////////////////////
 
-    std::cout << "Outputting results..." << std::endl;
+    // Output results
+    std::cout << "Optimization completed. Preparing results..." << std::endl;
 
-    // Prepare output JSON using Boost PropertyTree
     pt::ptree outputData;
     outputData.put("content_type", "CG_SHOP_2025_Solution");
     outputData.put("instance_uid", instanceUid);
@@ -163,8 +204,12 @@ int main(int argc, char *argv[])
     }
     outputData.add_child("edges", edgesNode);
 
+    outputData.put("obtuse_count", obtuseCount);
+    outputData.put("method", method);
+    outputData.add_child("parameters", parameters);
+
     // Write output to JSON file
-    std::ofstream outputFile("../output/output.json");
+    std::ofstream outputFile(outputPath);
     if (outputFile.is_open())
     {
         pt::write_json(outputFile, outputData);
