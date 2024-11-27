@@ -77,8 +77,6 @@ int main(int argc, char *argv[])
 
     // Parse algorithm-specific parameters
     pt::ptree parameters = inputData.get_child("parameters");
-    double alpha = parameters.get<double>("alpha", 1.0);
-    double beta = parameters.get<double>("beta", 1.0);
     int L = parameters.get<int>("L", 100);
 
     // Create the region boundary polygon
@@ -128,29 +126,28 @@ int main(int argc, char *argv[])
     std::cout << "Number of all triangles at start: " << cdt.number_of_faces() << std::endl;
     std::cout << "Number of obtuse triangles at start: " << countObtuseTriangles<CDT>(cdt, regionPolygon) << std::endl;
 
+    std::vector<Point> steiner_points;
     if (method == "local")
     {
-        // std::vector<Point> steiner_points;
-
-        // // Add Steiner points for obtuse triangles
-        // addSteinerPoints<CDT, Point>(cdt, steiner_points, regionPolygon);
-
-        // // Try to flip edges to make non-obtuse triangles
-        // flipEdgesToMakeNonObtuse<CDT>(cdt, regionPolygon);
-
-        // localSearchOptimization<CDT>(cdt, regionPolygon, L);
+        localSearchOptimization<CDT>(cdt, steiner_points, regionPolygon, L);
     }
     else if (method == "sa")
     {
-        // simulatedAnnealingOptimization<CDT>(cdt, regionPolygon, alpha, beta, L);
+        double alpha = parameters.get<double>("alpha", 1.0);
+        double beta = parameters.get<double>("beta", 1.0);
+
+        simulatedAnnealingOptimization<CDT>(cdt, steiner_points, regionPolygon, alpha, beta, L);
     }
     else if (method == "ant")
     {
+        double alpha = parameters.get<double>("alpha", 1.0);
+        double beta = parameters.get<double>("beta", 1.0);
         double xi = parameters.get<double>("xi", 1.0);
         double psi = parameters.get<double>("psi", 1.0);
         double lambda = parameters.get<double>("lambda", 0.5);
         int kappa = parameters.get<int>("kappa", 10);
-        // antColonyOptimization<CDT>(cdt, regionPolygon, alpha, beta, xi, psi, lambda, kappa, L);
+
+        antColonyOptimization<CDT>(cdt, steiner_points, regionPolygon, alpha, beta, xi, psi, lambda, kappa, L);
     }
     else
     {

@@ -25,6 +25,10 @@ typedef CGAL::Polygon_2<Kernel> Polygon_2;
 
 using Vector = Kernel::Vector_2;
 
+////////////////////////////////////////////
+//// CUSTOM CONSTRAINED DELAUNAY CLASS /////
+////////////////////////////////////////////
+
 // Custom CDT class with new insert methods
 template <class Gt, class Tds = CGAL::Default, class Itag = CGAL::Default>
 
@@ -97,6 +101,11 @@ public:
 
 typedef Custom_Constrained_Delaunay_triangulation_2<Kernel, Tds> CDT; // Defines the CDT type after class
 
+///////////////////////////////////////////
+//// HELPER FUNCTIONS FOR TRIANGULATION ///
+///////////////////////////////////////////
+
+// Helper function to check if a triangle is obtuse
 template <typename TPoint>
 bool isObtuse(const TPoint &p1, const TPoint &p2, const TPoint &p3, const Polygon_2 &regionPolygon)
 {
@@ -660,9 +669,13 @@ std::optional<Point> tryMergingObtuseTriangles(TCDT &cdt, const std::vector<TFac
     }
 }
 
-// Function to add Steiner points to remove obtuse triangles
+///////////////////////////////////////////////////
+//// THREE METHODS TO ADD STEINER POINTS //////////
+///////////////////////////////////////////////////
+
+// Method 1: Insert Steiner points using local search optimization
 template <typename TCDT, typename TPoint>
-void addSteinerPoints(TCDT &cdt, std::vector<TPoint> &steiner_points, const Polygon_2 &regionPolygon)
+void localSearchOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const Polygon_2 &regionPolygon, int L)
 {
     int numVerticesBefore = cdt.number_of_vertices(); // Get current vertex count
     int steinerPointsNum = 0;
@@ -716,15 +729,15 @@ void addSteinerPoints(TCDT &cdt, std::vector<TPoint> &steiner_points, const Poly
                 TPoint mergeCentroid;
                 if (obtuseCluster.size() > 1)
                 {
-                    std::optional<Point> mergeCentroid = tryMergingObtuseTriangles<CDT, CDT::Face_handle>(cdt, obtuseCluster);
-                    if (mergeCentroid)
-                    {
-                        obtuseAfterMerge = tryPointInsertion<CDT, Point>(cdt, *mergeCentroid, regionPolygon, true, false, obtuseCluster, face);
-                    }
-                    else
-                    {
-                        obtuseAfterMerge = std::numeric_limits<int>::max();
-                    }
+                    // std::optional<Point> mergeCentroid = tryMergingObtuseTriangles<CDT, CDT::Face_handle>(cdt, obtuseCluster);
+                    // if (mergeCentroid)
+                    // {
+                    //     obtuseAfterMerge = tryPointInsertion<CDT, Point>(cdt, *mergeCentroid, regionPolygon, true, false, obtuseCluster, face);
+                    // }
+                    // else
+                    // {
+                    obtuseAfterMerge = std::numeric_limits<int>::max();
+                    // }
                 }
 
                 // Find the method that reduces the number of obtuse triangles the most
@@ -786,6 +799,26 @@ void addSteinerPoints(TCDT &cdt, std::vector<TPoint> &steiner_points, const Poly
 
     std::cout << "Steiner points added: " << steinerPointsNum << std::endl;
 }
+
+// Method 2: Insert Steiner points using simulated annealing optimization
+template <typename TCDT, typename TPoint>
+void simulatedAnnealingOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const Polygon_2 &regionPolygon, double alpha, double beta, int L)
+{
+    std::cout << "Simulated Annealing Optimization not implemented yet" << std::endl;
+    // to be implemented
+}
+
+// Method 3: Insert Steiner points using ant colony optimization
+template <typename TCDT, typename TPoint>
+void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const Polygon_2 &regionPolygon, double alpha, double beta, double xi, double psi, double lambda, double kappa, int L)
+{
+    std::cout << "Ant Colony Optimization not implemented yet" << std::endl;
+    // to be implemented
+}
+
+////////////////////////////////////////
+//////////// FLIP FUNCTIONS ////////////
+////////////////////////////////////////
 
 template <typename TCDT, typename TFaceHandle, typename T>
 bool isFlipableForNonObtuse(TCDT &cdt, TFaceHandle face, T index, const Polygon_2 &regionPolygon)
