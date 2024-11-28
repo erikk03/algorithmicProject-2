@@ -47,8 +47,8 @@ int main(int argc, char *argv[])
     // Parse the input data
     std::string instanceUid = inputData.get<std::string>("instance_uid");
     int numPoints = inputData.get<int>("num_points");
-    bool delaunay = inputData.get<bool>("delaunay");
-    std::string method = inputData.get<std::string>("method");
+    bool delaunay = inputData.get<bool>("delaunay", true);
+    std::string method = inputData.get<std::string>("method", "local");
 
     std::vector<int> pointsX, pointsY, regionBoundary;
     for (const auto &item : inputData.get_child("points_x"))
@@ -76,7 +76,11 @@ int main(int argc, char *argv[])
     }
 
     // Parse algorithm-specific parameters
-    pt::ptree parameters = inputData.get_child("parameters");
+    pt::ptree parameters;
+    if (auto params = inputData.get_child_optional("parameters"))
+    {
+        parameters = *params;
+    }
     int L = parameters.get<int>("L", 100);
 
     // Create the region boundary polygon

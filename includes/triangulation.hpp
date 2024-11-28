@@ -809,6 +809,7 @@ void simulatedAnnealingOptimization(TCDT &cdt, std::vector<TPoint> &steiner_poin
 }
 
 // Method 3: Insert Steiner points using ant colony optimization
+
 template <typename TCDT, typename TPoint>
 void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const Polygon_2 &regionPolygon, double alpha, double beta, double xi, double psi, double lambda, double kappa, int L)
 {
