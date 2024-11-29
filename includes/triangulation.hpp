@@ -372,152 +372,165 @@ void processCluster(CDT &cdt, const std::vector<CDT::Face_handle> &cluster)
     }
 }
 
-bool checkForCircumcenter(CDT &cdt, typename CDT::Face_handle face)
+bool checkForCircumcenter(CDT &cdt, typename CDT::Face_handle face, const Polygon_2 &regionPolygon)
 {
     // std::cout << "draw1" << std::endl;
     // CGAL::draw(cdt);
     Point p1 = face->vertex(0)->point();
     Point p2 = face->vertex(1)->point();
     Point p3 = face->vertex(2)->point();
-    // std::cout << "triangle:" << p1 << "," << p2 << "," << p3 << std::endl;
 
-    CDT::Vertex_handle v1, v2;
     CDT::Edge exceedingEdge;
+    Point obtuseVertex;
+    Point other1, other2;
+
+    // Identify obtuse vertex and the opposite edge
     if (CGAL::angle(p2, p1, p3) == CGAL::OBTUSE)
     {
         // p1 is the obtuse vertex; opposite edge is between p2 and p3
         exceedingEdge = CDT::Edge(face, 0);
-        v1 = face->vertex(1);
-        v2 = face->vertex(2);
+        obtuseVertex = p1;
+        other1 = p2;
+        other2 = p3;
     }
     else if (CGAL::angle(p1, p2, p3) == CGAL::OBTUSE)
     {
         // p2 is the obtuse vertex; opposite edge is between p1 and p3
         exceedingEdge = CDT::Edge(face, 1);
-        v1 = face->vertex(0);
-        v2 = face->vertex(2);
+        obtuseVertex = p2;
+        other1 = p1;
+        other2 = p3;
     }
     else if (CGAL::angle(p1, p3, p2) == CGAL::OBTUSE)
     {
         // p3 is the obtuse vertex; opposite edge is between p1 and p2
         exceedingEdge = CDT::Edge(face, 2);
-        v1 = face->vertex(0);
-        v2 = face->vertex(1);
+        obtuseVertex = p3;
+        other1 = p1;
+        other2 = p2;
     }
     else
     {
-        return false;
+        // std::cerr << "No obtuse angle found in the triangle.\n";
+        return false; // No obtuse angle, skip
     }
 
-    // Print the exceeding edge for reference
-    Point p1_exceeding = exceedingEdge.first->vertex(cdt.cw(exceedingEdge.second))->point();
-    Point p2_exceeding = exceedingEdge.first->vertex(cdt.ccw(exceedingEdge.second))->point();
-    // std::cout << "Exceeding edge between (" << p1_exceeding.x() << ", " << p1_exceeding.y() << ") and ("
-    //           << p2_exceeding.x() << ", " << p2_exceeding.y() << ")" << std::endl;
-    // std::cout << "v1:" << v1->point() << "v2:" << v2->point() << std::endl;
+    // Compute circumcenter
+    Point circumcenter = CGAL::circumcenter(p1, p2, p3);
 
-    if (cdt.is_constrained(exceedingEdge))
+    // Step 1: Check if circumcenter lies within the region boundary
+    if (!regionPolygon.bounded_side(circumcenter) == CGAL::ON_BOUNDED_SIDE)
     {
+        // std::cerr << "Circumcenter lies outside the region boundary.\n";
         return false;
     }
 
-    bool skipEdge = false;
-    std::vector<CDT::Edge> incidentEdges;
+    // Step 2: Create a segment from obtuseVertex to circumcenter
+    Kernel::Segment_2 segmentToCircumcenter(obtuseVertex, circumcenter);
 
-    auto CollectEdges = [&](CDT::Vertex_handle vh)
+    // Check intersections with other segments
+    std::vector<CDT::Edge> intersectingEdges;
+    for (auto eit = cdt.finite_edges_begin(); eit != cdt.finite_edges_end(); ++eit)
+    {
+        Kernel::Segment_2 edgeSegment = cdt.segment(*eit);
+        if (CGAL::do_intersect(segmentToCircumcenter, edgeSegment))
+        {
+            intersectingEdges.push_back(*eit);
+        }
+    }
+
+    // Step 3: If segment intersects more than one edge or if it intersects a constrained edge, cancel
+    if (intersectingEdges.size() > 1)
+    {
+        // std::cerr << "Circumcenter intersects more than one edge.\n";
+        return false;
+    }
+    else if (intersectingEdges.size() == 1 && cdt.is_constrained(intersectingEdges[0]))
+    {
+        // std::cerr << "Circumcenter intersects a constrained edge.\n";
+        return false;
+    }
+
+    // Step 4: Get vertices of the intersecting edge
+    CDT::Vertex_handle v1 = intersectingEdges[0].first->vertex(cdt.cw(intersectingEdges[0].second));
+    CDT::Vertex_handle v2 = intersectingEdges[0].first->vertex(cdt.ccw(intersectingEdges[0].second));
+
+    // Step 5: Check if these vertices touch constrained edges, remove constraints temporarily
+    std::vector<CDT::Edge> edgesToRestore;
+    auto RemoveEdgeConstraints = [&](CDT::Vertex_handle vh)
     {
         auto edgeIt = cdt.incident_edges(vh);
         auto start = edgeIt;
 
-        // std::cout << "Collecting edges for vertex at ("
-        //           << vh->point().x() << ", " << vh->point().y() << "):" << std::endl;
-
         do
         {
-            if (!cdt.is_infinite(*edgeIt))
+            if (!cdt.is_infinite(*edgeIt) && cdt.is_constrained(*edgeIt))
             {
-                Point p1 = edgeIt->first->vertex(cdt.cw(edgeIt->second))->point();
-                Point p2 = edgeIt->first->vertex(cdt.ccw(edgeIt->second))->point();
-                Point excP1 = exceedingEdge.first->vertex(cdt.cw(exceedingEdge.second))->point();
-                Point excP2 = exceedingEdge.first->vertex(cdt.ccw(exceedingEdge.second))->point();
-
-                // std::cout << "  Edge between (" << p1.x() << ", " << p1.y() << ") and ("
-                //           << p2.x() << ", " << p2.y() << ")";
-
-                if (cdt.is_constrained(*edgeIt))
-                {
-                    // std::cout << " - Constrained Edge, skipping." << std::endl;
-                    skipEdge = true;
-                    return;
-                }
-                else if (!((p1 == excP1 && p2 == excP2) || (p1 == excP2 && p2 == excP1)))
-                {
-                    // std::cout << " - Unconstrained Edge, adding to list." << std::endl;
-                    incidentEdges.push_back(*edgeIt);
-                }
-                else
-                {
-                    // std::cout << " - Exceeding edge, not adding." << std::endl;
-                }
+                edgesToRestore.push_back(*edgeIt);
+                cdt.remove_constraint(edgeIt->first, edgeIt->second);
             }
             ++edgeIt;
         } while (edgeIt != start);
     };
 
-    CollectEdges(v1);
-    CollectEdges(v2);
-
-    // std::cout << "Incident edges collected:" << std::endl;
-    for (const auto &edge : incidentEdges)
-    {
-        Point pp1 = edge.first->vertex(cdt.cw(edge.second))->point();
-        Point pp2 = edge.first->vertex(cdt.ccw(edge.second))->point();
-        // std::cout << "  Edge between (" << pp1.x() << ", " << pp1.y() << ") and ("
-        //           << pp2.x() << ", " << pp2.y() << ")" << std::endl;
-    }
-    // std::cout << "End of incident edges list." << std::endl;
-
-    if (skipEdge)
-    {
-        return false;
-    }
-
-    for (const auto &edge : incidentEdges)
-    {
-        Point source = edge.first->vertex(cdt.cw(edge.second))->point();
-        Point target = edge.first->vertex(cdt.ccw(edge.second))->point();
-        cdt.insert_constraint(source, target);
-    }
+    RemoveEdgeConstraints(v1);
+    RemoveEdgeConstraints(v2);
     // std::cout << "draw2" << std::endl;
     // CGAL::draw(cdt);
 
-    Point edgeV1 = v1->point();
-    Point edgeV2 = v2->point();
-    // std::cout << "edgeV1:" << edgeV1 << "edgeV2:" << edgeV2 << std::endl;
-    cdt.remove(cdt.insert_no_flip(v1->point()));
-    cdt.remove(cdt.insert_no_flip(v2->point()));
-    // cdt.remove(v1);
-    // cdt.remove(v2);
-    // cdt.remove_no_flip(v1);
-    // cdt.remove_no_flip(v2);
+    // Step 6: Remove the vertices themselves, storing any other edges removed
+    std::vector<Kernel::Segment_2> unconstrainedSegments;
+    Point v1Point = v1->point();
+    Point v2Point = v2->point();
 
+    auto CollectUnconstrainedEdges = [&](CDT::Vertex_handle vh)
+    {
+        auto edgeIt = cdt.incident_edges(vh);
+        auto start = edgeIt;
+
+        do
+        {
+            if (!cdt.is_infinite(*edgeIt) && !cdt.is_constrained(*edgeIt))
+            {
+                Kernel::Segment_2 edgeSegment = cdt.segment(*edgeIt);
+                unconstrainedSegments.push_back(edgeSegment);
+            }
+            ++edgeIt;
+        } while (edgeIt != start);
+    };
+
+    CollectUnconstrainedEdges(v1);
+    CollectUnconstrainedEdges(v2);
+
+    cdt.remove(v1);
+    cdt.remove(v2);
     // std::cout << "draw3" << std::endl;
     // CGAL::draw(cdt);
 
-    CDT::Vertex_handle newVh1 = cdt.insert_no_flip(edgeV1);
-    CDT::Vertex_handle newVh2 = cdt.insert_no_flip(edgeV2);
+    // Step 7: Insert the circumcenter
+    CDT::Vertex_handle circumcenterHandle = cdt.insert(circumcenter);
     // std::cout << "draw4" << std::endl;
     // CGAL::draw(cdt);
 
-    for (const auto &edge : incidentEdges)
+    // Step 8: Restore the edges
+    for (const auto &edge : edgesToRestore)
     {
-        cdt.remove_constraint(edge.first, edge.second);
-        // std::cout << "Removed constraint between (" << edge.first->vertex(cdt.cw(edge.second))->point().x() << ", "
-        //           << edge.first->vertex(cdt.cw(edge.second))->point().y() << ") and ("
-        //           << edge.first->vertex(cdt.ccw(edge.second))->point().x() << ", "
-        //           << edge.first->vertex(cdt.ccw(edge.second))->point().y() << ")" << std::endl;
+        cdt.insert_constraint(edge.first->vertex(cdt.cw(edge.second))->point(),
+                              edge.first->vertex(cdt.ccw(edge.second))->point());
     }
+
+    for (const auto &seg : unconstrainedSegments)
+    {
+        cdt.insert_constraint(seg.source(), seg.target());
+    }
+    // std::cout << "draw5" << std::endl;
     // CGAL::draw(cdt);
+
+    // Step 9: Remove the original constrained edge
+    cdt.remove_constraint(exceedingEdge.first, exceedingEdge.second);
+    // std::cout << "draw6" << std::endl;
+    // CGAL::draw(cdt);
+
     return true;
 }
 
@@ -534,7 +547,7 @@ int tryPointInsertion(TCDT &cdt, const TPoint &test_point, const Polygon_2 &regi
     if (circ)
     {
         // std::cout << "Checking for circumcenter" << std::endl;
-        if (checkForCircumcenter(temp_cdt, *face) == false)
+        if (checkForCircumcenter(temp_cdt, *face, regionPolygon) == false)
         {
             return std::numeric_limits<int>::max();
         }
@@ -705,10 +718,10 @@ void localSearchOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, con
                 // Try circumcenter method
                 TPoint circumcenter = CGAL::circumcenter(p1, p2, p3);
                 int obtuseAfterCircumcenter = std::numeric_limits<int>::max();
-                // if (regionPolygon.bounded_side(circumcenter) != CGAL::ON_UNBOUNDED_SIDE)
-                // {
-                //     int obtuseAfterCircumcenter = tryPointInsertion<CDT, Point>(cdt, circumcenter, regionPolygon, false, true, std::nullopt, face);
-                // }
+                if (regionPolygon.bounded_side(circumcenter) != CGAL::ON_UNBOUNDED_SIDE)
+                {
+                    int obtuseAfterCircumcenter = tryPointInsertion<CDT, Point>(cdt, circumcenter, regionPolygon, false, true, std::nullopt, face);
+                }
 
                 // Try midpoint of the longest edge
                 TPoint midpoint = getMidpointOfLongestEdge<Point>(p1, p2, p3);
@@ -782,7 +795,7 @@ void localSearchOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, con
 
             if (edgeRemoval)
             {
-                checkForCircumcenter(cdt, bestTriangle);
+                checkForCircumcenter(cdt, bestTriangle, regionPolygon);
             }
             if (mergeEdgeRemoval)
             {
