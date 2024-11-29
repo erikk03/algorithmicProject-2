@@ -22,6 +22,7 @@ typedef CGAL::Triangulation_vertex_base_with_info_2<int, Kernel> Vb;
 typedef CGAL::Constrained_triangulation_face_base_2<Kernel> Fb;
 typedef CGAL::Triangulation_data_structure_2<Vb, Fb> Tds;
 typedef CGAL::Polygon_2<Kernel> Polygon_2;
+typedef CGAL::Segment_2<Kernel> Segment;
 
 using Vector = Kernel::Vector_2;
 
@@ -426,13 +427,15 @@ bool checkForCircumcenter(CDT &cdt, typename CDT::Face_handle face, const Polygo
     }
 
     // Step 2: Create a segment from obtuseVertex to circumcenter
-    Kernel::Segment_2 segmentToCircumcenter(obtuseVertex, circumcenter);
+    Segment segmentToCircumcenter(obtuseVertex, circumcenter);
 
     // Check intersections with other segments
     std::vector<CDT::Edge> intersectingEdges;
     for (auto eit = cdt.finite_edges_begin(); eit != cdt.finite_edges_end(); ++eit)
     {
-        Kernel::Segment_2 edgeSegment = cdt.segment(*eit);
+        Point p1 = eit->first->vertex(cdt.cw(eit->second))->point();
+        Point p2 = eit->first->vertex(cdt.ccw(eit->second))->point();
+        Segment edgeSegment(p1, p2);
         if (CGAL::do_intersect(segmentToCircumcenter, edgeSegment))
         {
             intersectingEdges.push_back(*eit);
@@ -479,7 +482,7 @@ bool checkForCircumcenter(CDT &cdt, typename CDT::Face_handle face, const Polygo
     // CGAL::draw(cdt);
 
     // Step 6: Remove the vertices themselves, storing any other edges removed
-    std::vector<Kernel::Segment_2> unconstrainedSegments;
+    std::vector<Segment> unconstrainedSegments;
     Point v1Point = v1->point();
     Point v2Point = v2->point();
 
@@ -492,7 +495,7 @@ bool checkForCircumcenter(CDT &cdt, typename CDT::Face_handle face, const Polygo
         {
             if (!cdt.is_infinite(*edgeIt) && !cdt.is_constrained(*edgeIt))
             {
-                Kernel::Segment_2 edgeSegment = cdt.segment(*edgeIt);
+                Segment edgeSegment = cdt.segment(*edgeIt);
                 unconstrainedSegments.push_back(edgeSegment);
             }
             ++edgeIt;
