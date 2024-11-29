@@ -438,7 +438,16 @@ bool checkForCircumcenter(CDT &cdt, typename CDT::Face_handle face, const Polygo
         Segment edgeSegment(p1, p2);
         if (CGAL::do_intersect(segmentToCircumcenter, edgeSegment))
         {
-            intersectingEdges.push_back(*eit);
+            // Calculate the intersection point
+            auto result = CGAL::intersection(segmentToCircumcenter, edgeSegment);
+            if (const Point *intersectionPoint = boost::get<Point>(&*result))
+            {
+                // Check if the intersection point is not the same as the obtuse vertex
+                if (*intersectionPoint != obtuseVertex)
+                {
+                    intersectingEdges.push_back(*eit);
+                }
+            }
         }
     }
 
@@ -452,6 +461,19 @@ bool checkForCircumcenter(CDT &cdt, typename CDT::Face_handle face, const Polygo
     {
         // std::cerr << "Circumcenter intersects a constrained edge.\n";
         return false;
+    }
+
+    // Track original constraints
+    std::set<std::pair<Point, Point>> originalConstraints;
+
+    for (auto eit = cdt.finite_edges_begin(); eit != cdt.finite_edges_end(); ++eit)
+    {
+        if (cdt.is_constrained(*eit))
+        {
+            Point p1 = eit->first->vertex(cdt.cw(eit->second))->point();
+            Point p2 = eit->first->vertex(cdt.ccw(eit->second))->point();
+            originalConstraints.insert({std::min(p1, p2), std::max(p1, p2)});
+        }
     }
 
     // Step 4: Get vertices of the intersecting edge
@@ -507,30 +529,59 @@ bool checkForCircumcenter(CDT &cdt, typename CDT::Face_handle face, const Polygo
 
     cdt.remove(v1);
     cdt.remove(v2);
-    // std::cout << "draw3" << std::endl;
+    std::cout << "draw3" << std::endl;
     // CGAL::draw(cdt);
 
-    // Step 7: Insert the circumcenter
-    CDT::Vertex_handle circumcenterHandle = cdt.insert(circumcenter);
-    // std::cout << "draw4" << std::endl;
-    // CGAL::draw(cdt);
-
-    // Step 8: Restore the edges
+    // Step 7: Restore the edges
     for (const auto &edge : edgesToRestore)
     {
         cdt.insert_constraint(edge.first->vertex(cdt.cw(edge.second))->point(),
                               edge.first->vertex(cdt.ccw(edge.second))->point());
     }
+    std::cout << "line541" << std::endl;
 
     for (const auto &seg : unconstrainedSegments)
     {
-        cdt.insert_constraint(seg.source(), seg.target());
+        if (!(seg.source() == exceedingEdge.first->vertex(cdt.cw(exceedingEdge.second))->point() &&
+              seg.target() == exceedingEdge.first->vertex(cdt.ccw(exceedingEdge.second))->point()) &&
+            !(seg.source() == exceedingEdge.first->vertex(cdt.ccw(exceedingEdge.second))->point() &&
+              seg.target() == exceedingEdge.first->vertex(cdt.cw(exceedingEdge.second))->point()))
+        {
+
+            cdt.insert_constraint(seg.source(), seg.target());
+        }
     }
+    std::cout << "draw4" << std::endl;
+    // CGAL::draw(cdt);
+
+    // Step 8: Insert the circumcenter
+    CDT::Vertex_handle circumcenterHandle = cdt.insert(circumcenter);
     // std::cout << "draw5" << std::endl;
     // CGAL::draw(cdt);
 
-    // Step 9: Remove the original constrained edge
-    cdt.remove_constraint(exceedingEdge.first, exceedingEdge.second);
+    // Step 9: Remove edges that were not constrained originally
+    for (auto eit = cdt.finite_edges_begin(); eit != cdt.finite_edges_end(); ++eit)
+    {
+        if (cdt.is_constrained(*eit))
+        {
+            // Get the vertices of the edge
+            Point p1 = eit->first->vertex(cdt.cw(eit->second))->point();
+            Point p2 = eit->first->vertex(cdt.ccw(eit->second))->point();
+
+            // Create a pair for easy comparison
+            std::pair<Point, Point> edgePair = {std::min(p1, p2), std::max(p1, p2)};
+
+            // If the edge is constrained but wasn't part of the original constraints, remove it
+            if (originalConstraints.find(edgePair) == originalConstraints.end())
+            {
+                // We need to get the face and the edge index for the constrained edge
+                CDT::Face_handle f = eit->first;
+                int index = eit->second;
+                cdt.remove_constraint(f, index); // Remove the constraint using the correct parameters
+            }
+        }
+    }
+
     // std::cout << "draw6" << std::endl;
     // CGAL::draw(cdt);
 
