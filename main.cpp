@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
     std::string instanceUid = inputData.get<std::string>("instance_uid");
     int numPoints = inputData.get<int>("num_points");
     bool delaunay = inputData.get<bool>("delaunay", true);
-    std::string method = inputData.get<std::string>("method", "local");
+    std::string method = inputData.get<std::string>("method", "sa");
 
     std::vector<int> pointsX, pointsY, regionBoundary;
     for (const auto &item : inputData.get_child("points_x"))
@@ -137,8 +137,11 @@ int main(int argc, char *argv[])
     }
     else if (method == "sa")
     {
-        double alpha = parameters.get<double>("alpha", 1.0);
-        double beta = parameters.get<double>("beta", 1.0);
+        // double alpha = parameters.get<double>("alpha", 1.0);
+        // double beta = parameters.get<double>("beta", 1.0);
+        double alpha = 4.0;
+        double beta = 0.5;
+        int L = 1000;
 
         simulatedAnnealingOptimization<CDT>(cdt, steiner_points, regionPolygon, alpha, beta, L);
     }
