@@ -90,11 +90,6 @@ int main(int argc, char *argv[])
         regionPolygon.push_back(Point(pointsX[idx], pointsY[idx]));
     }
 
-    // std::cout <<"Region boundary:\n";
-    // for(auto it = regionPolygon.vertices_begin(); it != regionPolygon.vertices_end(); ++it) {
-    //     std::cout << it->x() << " " << it->y() << std::endl;
-    // }
-
     // Use the CDT defined in triangulation.hpp
     CDT cdt;
 

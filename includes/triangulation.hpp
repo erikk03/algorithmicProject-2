@@ -243,6 +243,135 @@ int countObtuseTriangles(TCDT &cdt, const Polygon_2 &regionPolygon)
     return obtuseCount;
 }
 
+// Function to check if two triangles share an edge
+template <typename TFaceHandle>
+bool areNeighbours(TFaceHandle face1, TFaceHandle face2)
+{
+    int sharedVertices = 0;
+    for (int i = 0; i < 3; ++i)
+    {
+        Point p1 = face1->vertex(i)->point();
+        for (int j = 0; j < 3; ++j)
+        {
+            Point p2 = face2->vertex(j)->point();
+            if (p1 == p2)
+            {
+                sharedVertices++;
+            }
+        }
+    }
+    return (sharedVertices == 2); // True if two triangles share exactly 2 vertices
+}
+
+// Function to collect neighboring obtuse triangles that form a convex hull
+template <typename TCDT, typename TFaceHandle>
+std::vector<CDT::Face_handle> collectNeighbouringObtuseTriangles(TCDT &cdt, TFaceHandle face, const Polygon_2 &regionPolygon)
+{
+    std::vector<TFaceHandle> obtuseCluster;
+    std::vector<TFaceHandle> facesToCheck;
+    std::set<TFaceHandle> visitedFaces;
+
+    facesToCheck.push_back(face);
+    visitedFaces.insert(face);
+
+    while (!facesToCheck.empty())
+    {
+        TFaceHandle currentFace = facesToCheck.front();
+        facesToCheck.erase(facesToCheck.begin());
+
+        obtuseCluster.push_back(currentFace);
+
+        // Check neighbors
+        for (int i = 0; i < 3; ++i)
+        {
+            TFaceHandle neighborFace = currentFace->neighbor(i);
+
+            Point p1 = neighborFace->vertex(0)->point();
+            Point p2 = neighborFace->vertex(1)->point();
+            Point p3 = neighborFace->vertex(2)->point();
+
+            // Check if the neighbor is a valid face, not already visited, and is also obtuse
+            if (neighborFace != TFaceHandle() && visitedFaces.find(neighborFace) == visitedFaces.end() && isObtuse<Point>(p1, p2, p3, regionPolygon))
+            {
+                if (areNeighbours<CDT::Face_handle>(currentFace, neighborFace))
+                {
+                    facesToCheck.push_back(neighborFace);
+                    visitedFaces.insert(neighborFace);
+                }
+            }
+        }
+    }
+
+    return obtuseCluster;
+}
+
+////////////////////////
+// For MergeTriangles //
+////////////////////////
+
+// Function to find the centroid of a convex polygon from the merged triangles
+template <typename TPoint>
+TPoint getConvexHullCentroid(const std::vector<TPoint> &convexHullPoints)
+{
+    double xSum = 0.0, ySum = 0.0;
+    for (const auto &point : convexHullPoints)
+    {
+        xSum += CGAL::to_double(point.x());
+        ySum += CGAL::to_double(point.y());
+    }
+
+    // Compute the average x and y coordinates
+    double xCentroid = xSum / convexHullPoints.size();
+    double yCentroid = ySum / convexHullPoints.size();
+
+    TPoint centroid = TPoint(xCentroid, yCentroid);
+
+    // CGAL::Polygon_2<typename TPoint::R> polygon(convexHullPoints.begin(), convexHullPoints.end());
+
+    // // Check if the centroid is inside the convex hull
+    // if(CGAL::bounded_side_2(polygon.vertices_begin(), polygon.vertices_end(), centroid, typename TPoint::R()) == CGAL::ON_BOUNDED_SIDE) {
+    //     return centroid;
+    // }
+    // else{
+    //     return std::nullopt;
+    // }
+    return centroid;
+}
+
+// Function to try merging obtuse triangles, form the convex hull, and insert a Steiner point
+template <typename TCDT, typename TFaceHandle>
+std::optional<Point> tryMergingObtuseTriangles(TCDT &cdt, const std::vector<TFaceHandle> &obtuseCluster)
+{
+    // Make a temporary copy of the triangulation
+    TCDT temp_cdt = cdt;
+
+    // Collect points from the obtuse triangles
+    std::set<Point> uniquePoints;
+    for (const auto &face : obtuseCluster)
+    {
+        for (int i = 0; i < 3; ++i)
+        {
+            uniquePoints.insert(face->vertex(i)->point());
+        }
+    }
+
+    // Form the convex hull of the unique points
+    std::vector<Point> convexHullPoints(uniquePoints.begin(), uniquePoints.end());
+    Point centroid = getConvexHullCentroid<Point>(convexHullPoints);
+
+    CGAL::Polygon_2<typename Point::R> ConvexHullPolygon(convexHullPoints.begin(), convexHullPoints.end());
+
+    if (CGAL::bounded_side_2(ConvexHullPolygon.vertices_begin(), ConvexHullPolygon.vertices_end(), centroid, typename Point::R()) != CGAL::ON_BOUNDED_SIDE)
+    {
+        return centroid;
+    }
+    else
+    {
+        return std::nullopt;
+    }
+}
+
+// Function to process a cluster of triangles
 void processCluster(CDT &cdt, const std::vector<CDT::Face_handle> &cluster)
 {
     std::cerr << "Entering processCluster with " << cluster.size() << " faces.\n";
@@ -373,10 +502,13 @@ void processCluster(CDT &cdt, const std::vector<CDT::Face_handle> &cluster)
     }
 }
 
+//////////////////////
+// For Circumcenter //
+//////////////////////
+
 bool checkForCircumcenter(CDT &cdt, typename CDT::Face_handle face, const Polygon_2 &regionPolygon)
 {
-    // std::cout << "draw1" << std::endl;
-    // CGAL::draw(cdt);
+
     Point p1 = face->vertex(0)->point();
     Point p2 = face->vertex(1)->point();
     Point p3 = face->vertex(2)->point();
@@ -486,7 +618,7 @@ bool checkForCircumcenter(CDT &cdt, typename CDT::Face_handle face, const Polygo
     {
         auto edgeIt = cdt.incident_edges(vh);
         auto start = edgeIt;
-
+        int i = 0;
         do
         {
             if (!cdt.is_infinite(*edgeIt) && cdt.is_constrained(*edgeIt))
@@ -495,13 +627,16 @@ bool checkForCircumcenter(CDT &cdt, typename CDT::Face_handle face, const Polygo
                 cdt.remove_constraint(edgeIt->first, edgeIt->second);
             }
             ++edgeIt;
+            i++;
+            if (i > 100)
+            {
+                break;
+            }
         } while (edgeIt != start);
     };
 
     RemoveEdgeConstraints(v1);
     RemoveEdgeConstraints(v2);
-    // std::cout << "draw2" << std::endl;
-    // CGAL::draw(cdt);
 
     // Step 6: Remove the vertices themselves, storing any other edges removed
     std::vector<Segment> unconstrainedSegments;
@@ -529,17 +664,8 @@ bool checkForCircumcenter(CDT &cdt, typename CDT::Face_handle face, const Polygo
 
     cdt.remove(v1);
     cdt.remove(v2);
-    std::cout << "draw3" << std::endl;
-    // CGAL::draw(cdt);
 
     // Step 7: Restore the edges
-    for (const auto &edge : edgesToRestore)
-    {
-        cdt.insert_constraint(edge.first->vertex(cdt.cw(edge.second))->point(),
-                              edge.first->vertex(cdt.ccw(edge.second))->point());
-    }
-    std::cout << "line541" << std::endl;
-
     for (const auto &seg : unconstrainedSegments)
     {
         if (!(seg.source() == exceedingEdge.first->vertex(cdt.cw(exceedingEdge.second))->point() &&
@@ -547,17 +673,12 @@ bool checkForCircumcenter(CDT &cdt, typename CDT::Face_handle face, const Polygo
             !(seg.source() == exceedingEdge.first->vertex(cdt.ccw(exceedingEdge.second))->point() &&
               seg.target() == exceedingEdge.first->vertex(cdt.cw(exceedingEdge.second))->point()))
         {
-
             cdt.insert_constraint(seg.source(), seg.target());
         }
     }
-    std::cout << "draw4" << std::endl;
-    // CGAL::draw(cdt);
 
     // Step 8: Insert the circumcenter
     CDT::Vertex_handle circumcenterHandle = cdt.insert(circumcenter);
-    // std::cout << "draw5" << std::endl;
-    // CGAL::draw(cdt);
 
     // Step 9: Remove edges that were not constrained originally
     for (auto eit = cdt.finite_edges_begin(); eit != cdt.finite_edges_end(); ++eit)
@@ -577,16 +698,18 @@ bool checkForCircumcenter(CDT &cdt, typename CDT::Face_handle face, const Polygo
                 // We need to get the face and the edge index for the constrained edge
                 CDT::Face_handle f = eit->first;
                 int index = eit->second;
+
                 cdt.remove_constraint(f, index); // Remove the constraint using the correct parameters
             }
         }
     }
 
-    // std::cout << "draw6" << std::endl;
-    // CGAL::draw(cdt);
-
     return true;
 }
+
+//////////////////////////////////
+// For Temporary Steiner Points //
+//////////////////////////////////
 
 // Function to insert a point and count the number of obtuse triangles
 template <typename TCDT, typename TPoint>
@@ -600,7 +723,6 @@ int tryPointInsertion(TCDT &cdt, const TPoint &test_point, const Polygon_2 &regi
     }
     if (circ)
     {
-        // std::cout << "Checking for circumcenter" << std::endl;
         if (checkForCircumcenter(temp_cdt, *face, regionPolygon) == false)
         {
             return std::numeric_limits<int>::max();
@@ -610,130 +732,6 @@ int tryPointInsertion(TCDT &cdt, const TPoint &test_point, const Polygon_2 &regi
     temp_cdt.insert_no_flip(test_point); // Insert the test point into the copy
 
     return countObtuseTriangles<CDT>(temp_cdt, regionPolygon); // Count how many obtuse triangles remain
-}
-
-// Function to check if two triangles share an edge
-template <typename TFaceHandle>
-bool areNeighbours(TFaceHandle face1, TFaceHandle face2)
-{
-    int sharedVertices = 0;
-    for (int i = 0; i < 3; ++i)
-    {
-        Point p1 = face1->vertex(i)->point();
-        for (int j = 0; j < 3; ++j)
-        {
-            Point p2 = face2->vertex(j)->point();
-            if (p1 == p2)
-            {
-                sharedVertices++;
-            }
-        }
-    }
-    return (sharedVertices == 2); // True if two triangles share exactly 2 vertices
-}
-
-// Function to collect neighboring obtuse triangles that form a convex hull
-template <typename TCDT, typename TFaceHandle>
-std::vector<CDT::Face_handle> collectNeighbouringObtuseTriangles(TCDT &cdt, TFaceHandle face, const Polygon_2 &regionPolygon)
-{
-    std::vector<TFaceHandle> obtuseCluster;
-    std::vector<TFaceHandle> facesToCheck;
-    std::set<TFaceHandle> visitedFaces;
-
-    facesToCheck.push_back(face);
-    visitedFaces.insert(face);
-
-    while (!facesToCheck.empty())
-    {
-        TFaceHandle currentFace = facesToCheck.front();
-        facesToCheck.erase(facesToCheck.begin());
-
-        obtuseCluster.push_back(currentFace);
-
-        // Check neighbors
-        for (int i = 0; i < 3; ++i)
-        {
-            TFaceHandle neighborFace = currentFace->neighbor(i);
-
-            Point p1 = neighborFace->vertex(0)->point();
-            Point p2 = neighborFace->vertex(1)->point();
-            Point p3 = neighborFace->vertex(2)->point();
-
-            // Check if the neighbor is a valid face, not already visited, and is also obtuse
-            if (neighborFace != TFaceHandle() && visitedFaces.find(neighborFace) == visitedFaces.end() && isObtuse<Point>(p1, p2, p3, regionPolygon))
-            {
-                if (areNeighbours<CDT::Face_handle>(currentFace, neighborFace))
-                {
-                    facesToCheck.push_back(neighborFace);
-                    visitedFaces.insert(neighborFace);
-                }
-            }
-        }
-    }
-
-    return obtuseCluster;
-}
-
-// Function to find the centroid of a convex polygon from the merged triangles
-template <typename TPoint>
-TPoint getConvexHullCentroid(const std::vector<TPoint> &convexHullPoints)
-{
-    double xSum = 0.0, ySum = 0.0;
-    for (const auto &point : convexHullPoints)
-    {
-        xSum += CGAL::to_double(point.x());
-        ySum += CGAL::to_double(point.y());
-    }
-
-    // Compute the average x and y coordinates
-    double xCentroid = xSum / convexHullPoints.size();
-    double yCentroid = ySum / convexHullPoints.size();
-
-    TPoint centroid = TPoint(xCentroid, yCentroid);
-
-    // CGAL::Polygon_2<typename TPoint::R> polygon(convexHullPoints.begin(), convexHullPoints.end());
-
-    // // Check if the centroid is inside the convex hull
-    // if(CGAL::bounded_side_2(polygon.vertices_begin(), polygon.vertices_end(), centroid, typename TPoint::R()) == CGAL::ON_BOUNDED_SIDE) {
-    //     return centroid;
-    // }
-    // else{
-    //     return std::nullopt;
-    // }
-    return centroid;
-}
-
-// Function to try merging obtuse triangles, form the convex hull, and insert a Steiner point
-template <typename TCDT, typename TFaceHandle>
-std::optional<Point> tryMergingObtuseTriangles(TCDT &cdt, const std::vector<TFaceHandle> &obtuseCluster)
-{
-    // Make a temporary copy of the triangulation
-    TCDT temp_cdt = cdt;
-
-    // Collect points from the obtuse triangles
-    std::set<Point> uniquePoints;
-    for (const auto &face : obtuseCluster)
-    {
-        for (int i = 0; i < 3; ++i)
-        {
-            uniquePoints.insert(face->vertex(i)->point());
-        }
-    }
-
-    // Form the convex hull of the unique points
-    std::vector<Point> convexHullPoints(uniquePoints.begin(), uniquePoints.end());
-    Point centroid = getConvexHullCentroid<Point>(convexHullPoints);
-
-    CGAL::Polygon_2<typename Point::R> ConvexHullPolygon(convexHullPoints.begin(), convexHullPoints.end());
-
-    if (CGAL::bounded_side_2(ConvexHullPolygon.vertices_begin(), ConvexHullPolygon.vertices_end(), centroid, typename Point::R()) != CGAL::ON_BOUNDED_SIDE)
-    {
-        return centroid;
-    }
-    else
-    {
-        return std::nullopt;
-    }
 }
 
 ///////////////////////////////////////////////////
