@@ -868,7 +868,7 @@ void localSearchOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, con
 }
 
 // Method 2: Insert Steiner points using simulated annealing optimization
-    template <typename TCDT, typename TPoint>
+template <typename TCDT, typename TPoint>
 void simulatedAnnealingOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const Polygon_2 &regionPolygon, double alpha, double beta, int L)
 {
     // Initialize temperature and compute initial energy
@@ -1000,14 +1000,195 @@ void simulatedAnnealingOptimization(TCDT &cdt, std::vector<TPoint> &steiner_poin
 }
 
 
+template <typename TPoint>
+double calculateRadiusToHeight(const TPoint &p1, const TPoint &p2, const TPoint &p3)
+{
+    // Step 1: Calculate circumradius (R) using the circumcenter
+    TPoint circumcenter = CGAL::circumcenter(p1, p2, p3);
+    double R = std::sqrt(CGAL::to_double(CGAL::squared_distance(circumcenter, p1)));
+
+    // Step 2: Find the longest side (base) and calculate the height (h)
+    double d1 = CGAL::to_double(CGAL::squared_distance(p1, p2));
+    double d2 = CGAL::to_double(CGAL::squared_distance(p2, p3));
+    double d3 = CGAL::to_double(CGAL::squared_distance(p3, p1));
+
+    // Find the longest side
+    double maxDistance = std::max({d1, d2, d3});
+    double baseLength = std::sqrt(maxDistance);
+
+    // Determine the height corresponding to the longest side
+    double area = std::abs(CGAL::to_double(CGAL::area(p1, p2, p3)));
+    double height = (2 * area) / baseLength;
+
+    // Step 3: Compute and return the Radius-to-Height ratio (ρ)
+    if (height == 0)
+    {
+        throw std::runtime_error("Degenerate triangle with zero height.");
+    }
+    return R / height;
+}
+
+
+
 // Method 3: Insert Steiner points using ant colony optimization
 
 template <typename TCDT, typename TPoint>
-void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const Polygon_2 &regionPolygon, double alpha, double beta, double xi, double psi, double lambda, double kappa, int L)
+void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const Polygon_2 &regionPolygon, double alpha, double beta, double xi, double psi, double lambda, int kappa, int L)
 {
-    std::cout << "Ant Colony Optimization not implemented yet" << std::endl;
-    // to be implemented
+    int n = cdt.number_of_vertices(); // Number of input points
+    int K = std::max(1, n / 4);       // Number of ants (at least n/4)
+
+    // Initialize pheromone values for all methods (1 to 4)
+    std::map<int, double> pheromoneTrails = {
+        {1, 1.0}, // Projection
+        {2, 1.0}, // Circumcenter
+        {3, 1.0}, // Midpoint
+        {4, 1.0}  // Merge
+    };
+
+    TCDT bestTriangulation = cdt;      // Store the best overall triangulation
+    double bestEnergy = alpha * countObtuseTriangles(cdt, regionPolygon) + beta * steiner_points.size();
+
+    // Main ACO cycle
+    for (int cycle = 1; cycle <= L; ++cycle)
+    {
+        std::cout << "Cycle " << cycle << "/" << L << std::endl;
+
+        // Store temporary triangulations and energies for all ants
+        std::vector<TCDT> antTriangulations(K, cdt);
+        std::vector<double> antEnergies(K, bestEnergy);
+
+        // Track pheromone reinforcements for each method
+        std::map<int, double> pheromoneReinforcement = {{1, 0.0}, {2, 0.0}, {3, 0.0}, {4, 0.0}};
+
+        for (int k = 0; k < K; ++k)
+        {
+            TCDT &antTriangulation = antTriangulations[k];
+            double antEnergy = antEnergies[k];
+            bool processedTriangle = false; // Track if the ant has processed a triangle
+
+            for (auto face = antTriangulation.finite_faces_begin(); face != antTriangulation.finite_faces_end(); ++face)
+            {
+                TPoint p1 = face->vertex(0)->point();
+                TPoint p2 = face->vertex(1)->point();
+                TPoint p3 = face->vertex(2)->point();
+
+                if (isObtuse<TPoint>(p1, p2, p3, regionPolygon))
+                {
+                    double rho = calculateRadiusToHeight(p1, p2, p3);
+
+                    // Compute heuristic values ηsp
+                    double etaProjection = std::max(0.0, (rho - 1) / rho);
+                    double etaCircumcenter = rho / (2 + rho);
+                    double etaMidpoint = std::max(0.0, (3 - 2 * rho) / 3);
+                    double etaMerge = 1.0;
+
+                    // Calculate probabilities Psp(k)
+                    std::vector<double> probabilities = {
+                        pheromoneTrails[1] * std::pow(etaProjection, psi),
+                        pheromoneTrails[2] * std::pow(etaCircumcenter, psi),
+                        pheromoneTrails[3] * std::pow(etaMidpoint, psi),
+                        pheromoneTrails[4] * std::pow(etaMerge, psi)
+                    };
+
+                    // Normalize probabilities
+                    double sumProbabilities = std::accumulate(probabilities.begin(), probabilities.end(), 0.0);
+                    for (auto &prob : probabilities)
+                    {
+                        prob /= sumProbabilities;
+                    }
+
+                    // Select a method based on probabilities
+                    double randomValue = ((double)rand() / RAND_MAX);
+                    int chosenMethod = std::distance(probabilities.begin(), std::lower_bound(probabilities.begin(), probabilities.end(), randomValue));
+
+                    TPoint selectedPoint;
+                    switch (chosenMethod)
+                    {
+                    case 0: // Projection
+                        selectedPoint = getProjection<TPoint>(p1, p2, p3);
+                        break;
+                    case 1: // Circumcenter
+                        // selectedPoint = CGAL::circumcenter(p1, p2, p3);
+                        selectedPoint = getProjection<TPoint>(p1, p2, p3);
+                        break;
+                    case 2: // Midpoint
+                        selectedPoint = getMidpointOfLongestEdge<TPoint>(p1, p2, p3);
+                        break;
+                    case 3: // Merge
+                    {
+                        selectedPoint = getProjection<TPoint>(p1, p2, p3);
+                        // std::vector<CDT::Face_handle> obtuseCluster = collectNeighbouringObtuseTriangles<TCDT, CDT::Face_handle>(antTriangulation, face, regionPolygon);
+                        // if (obtuseCluster.size() > 1)
+                        // {
+                        //     auto mergeResult = tryMergingObtuseTriangles<TCDT, CDT::Face_handle>(antTriangulation, obtuseCluster);
+                        //     if (mergeResult.has_value())
+                        //     {
+                        //         selectedPoint = *mergeResult;
+                        //     }
+                        // }
+                        break;
+                    }
+                    default:
+                        continue;
+                    }
+
+                    // if (!selectedPoint.is_valid())
+                    // {
+                    //     continue; // Skip invalid selections
+                    // }
+
+                    // Insert the Steiner point and update energy
+                    antTriangulation.insert(selectedPoint);
+                    steiner_points.push_back(selectedPoint);
+
+                    int newObtuseTriangles = countObtuseTriangles(antTriangulation, regionPolygon);
+                    antEnergy = alpha * newObtuseTriangles + beta * steiner_points.size();
+
+                    if (antEnergy < antEnergies[k])
+                    {
+                        antEnergies[k] = antEnergy;
+
+                        // Pheromone reinforcement for this method
+                        pheromoneReinforcement[chosenMethod + 1] += 1.0 / (1.0 + alpha * newObtuseTriangles + beta * steiner_points.size());
+                    }
+
+                    // processedTriangle = true; // Mark this triangle as processed
+                    // break;                   // Exit loop after processing one triangle
+                }
+            }
+
+            // // Skip to the next ant if no triangle was processed
+            // if (!processedTriangle)
+            // {
+            //     continue;
+            // }
+        }
+
+        // Update pheromone trails after processing all ants
+        for (auto &pheromone : pheromoneTrails)
+        {
+            int method = pheromone.first;
+            pheromone.second = (1 - lambda) * pheromone.second + pheromoneReinforcement[method];
+        }
+
+        // Resolve conflicts and save the best triangulation of this cycle
+        for (int k = 0; k < K; ++k)
+        {
+            if (antEnergies[k] < bestEnergy)
+            {
+                bestEnergy = antEnergies[k];
+                bestTriangulation = antTriangulations[k];
+            }
+        }
+
+        std::cout << "Best energy for cycle " << cycle << ": " << bestEnergy << std::endl;
+    }
+
+    cdt = bestTriangulation; // Update the original CDT with the best triangulation
+    std::cout << "Final best energy: " << bestEnergy << std::endl;
 }
+
 
 ////////////////////////////////////////
 //////////// FLIP FUNCTIONS ////////////
@@ -1155,3 +1336,5 @@ std::string toFraction(const T &value)
 }
 
 #endif // TRIANGULATION_HPP
+
+
