@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
     std::string instanceUid = inputData.get<std::string>("instance_uid");
     int numPoints = inputData.get<int>("num_points");
     bool delaunay = inputData.get<bool>("delaunay", true);
-    std::string method = inputData.get<std::string>("method", "local");
+    std::string method = inputData.get<std::string>("method", "ant");
 
     std::vector<int> pointsX, pointsY, regionBoundary;
     for (const auto &item : inputData.get_child("points_x"))
@@ -132,19 +132,30 @@ int main(int argc, char *argv[])
     }
     else if (method == "sa")
     {
-        double alpha = parameters.get<double>("alpha", 1.0);
-        double beta = parameters.get<double>("beta", 1.0);
+        // double alpha = parameters.get<double>("alpha", 1.0);
+        // double beta = parameters.get<double>("beta", 1.0);
+        double alpha = 4.0;
+        double beta = 0.5;
+        int L = 1000;
 
         simulatedAnnealingOptimization<CDT>(cdt, steiner_points, regionPolygon, alpha, beta, L);
     }
     else if (method == "ant")
     {
-        double alpha = parameters.get<double>("alpha", 1.0);
-        double beta = parameters.get<double>("beta", 1.0);
-        double xi = parameters.get<double>("xi", 1.0);
-        double psi = parameters.get<double>("psi", 1.0);
-        double lambda = parameters.get<double>("lambda", 0.5);
-        int kappa = parameters.get<int>("kappa", 10);
+        // double alpha = parameters.get<double>("alpha", 1.0);
+        // double beta = parameters.get<double>("beta", 1.0);
+        // double xi = parameters.get<double>("xi", 1.0);
+        // double psi = parameters.get<double>("psi", 1.0);
+        // double lambda = parameters.get<double>("lambda", 0.5);
+        // int kappa = parameters.get<int>("kappa", 10);
+        double alpha = 4.0;
+        double beta = 0.5;
+        int xi = 1;
+        int psi = 3;
+        double lambda = 0.5;
+        int kappa = 10;
+        int L = 50;
+
 
         antColonyOptimization<CDT>(cdt, steiner_points, regionPolygon, alpha, beta, xi, psi, lambda, kappa, L);
     }
@@ -173,32 +184,32 @@ int main(int argc, char *argv[])
 
     // Store steiner points
     pt::ptree steinerPointsXNode, steinerPointsYNode;
-    for (auto vertex = cdt.finite_vertices_begin(); vertex != cdt.finite_vertices_end(); ++vertex)
-    {
-        if (vertex->point().x() != pointsX[vertex->info()] || vertex->point().y() != pointsY[vertex->info()])
-        {
-            pt::ptree xNode, yNode;
-            xNode.put("", toFraction(vertex->point().x())); // Use fraction format
-            yNode.put("", toFraction(vertex->point().y())); // Use fraction format
-            steinerPointsXNode.push_back(std::make_pair("", xNode));
-            steinerPointsYNode.push_back(std::make_pair("", yNode));
-        }
-    }
-    outputData.add_child("steiner_points_x", steinerPointsXNode);
-    outputData.add_child("steiner_points_y", steinerPointsYNode);
+    // for (auto vertex = cdt.finite_vertices_begin(); vertex != cdt.finite_vertices_end(); ++vertex)
+    // {
+    //     if (vertex->point().x() != pointsX[vertex->info()] || vertex->point().y() != pointsY[vertex->info()])
+    //     {
+    //         pt::ptree xNode, yNode;
+    //         xNode.put("", toFraction(vertex->point().x())); // Use fraction format
+    //         yNode.put("", toFraction(vertex->point().y())); // Use fraction format
+    //         steinerPointsXNode.push_back(std::make_pair("", xNode));
+    //         steinerPointsYNode.push_back(std::make_pair("", yNode));
+    //     }
+    // }
+    // outputData.add_child("steiner_points_x", steinerPointsXNode);
+    // outputData.add_child("steiner_points_y", steinerPointsYNode);
 
-    // Store edges
-    pt::ptree edgesNode;
-    for (auto edge = cdt.finite_edges_begin(); edge != cdt.finite_edges_end(); ++edge)
-    {
-        int index1 = edge->first->vertex((edge->second + 1) % 3)->info();
-        int index2 = edge->first->vertex((edge->second + 2) % 3)->info();
-        pt::ptree edgeNode;
-        edgeNode.push_back(std::make_pair("", pt::ptree(std::to_string(index1))));
-        edgeNode.push_back(std::make_pair("", pt::ptree(std::to_string(index2))));
-        edgesNode.push_back(std::make_pair("", edgeNode));
-    }
-    outputData.add_child("edges", edgesNode);
+    // // Store edges
+    // pt::ptree edgesNode;
+    // for (auto edge = cdt.finite_edges_begin(); edge != cdt.finite_edges_end(); ++edge)
+    // {
+    //     int index1 = edge->first->vertex((edge->second + 1) % 3)->info();
+    //     int index2 = edge->first->vertex((edge->second + 2) % 3)->info();
+    //     pt::ptree edgeNode;
+    //     edgeNode.push_back(std::make_pair("", pt::ptree(std::to_string(index1))));
+    //     edgeNode.push_back(std::make_pair("", pt::ptree(std::to_string(index2))));
+    //     edgesNode.push_back(std::make_pair("", edgeNode));
+    // }
+    // outputData.add_child("edges", edgesNode);
 
     outputData.put("obtuse_count", obtuseCount);
     outputData.put("method", method);
