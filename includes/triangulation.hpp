@@ -326,15 +326,6 @@ TPoint getConvexHullCentroid(const std::vector<TPoint> &convexHullPoints)
 
     TPoint centroid = TPoint(xCentroid, yCentroid);
 
-    // CGAL::Polygon_2<typename TPoint::R> polygon(convexHullPoints.begin(), convexHullPoints.end());
-
-    // // Check if the centroid is inside the convex hull
-    // if(CGAL::bounded_side_2(polygon.vertices_begin(), polygon.vertices_end(), centroid, typename TPoint::R()) == CGAL::ON_BOUNDED_SIDE) {
-    //     return centroid;
-    // }
-    // else{
-    //     return std::nullopt;
-    // }
     return centroid;
 }
 
@@ -358,13 +349,6 @@ Point tryMergingObtuseTriangles(TCDT &cdt, const std::vector<TFaceHandle> &obtus
     // Form the convex hull of the unique points
     std::vector<Point> convexHullPoints(uniquePoints.begin(), uniquePoints.end());
     Point centroid = getConvexHullCentroid<Point>(convexHullPoints);
-
-    CGAL::Polygon_2<typename Point::R> ConvexHullPolygon(convexHullPoints.begin(), convexHullPoints.end());
-
-    // if (CGAL::bounded_side_2(ConvexHullPolygon.vertices_begin(), ConvexHullPolygon.vertices_end(), centroid, typename Point::R()) != CGAL::ON_BOUNDED_SIDE)
-    // {
-    //     return centroid;
-    // }
 
     return centroid;
 }
