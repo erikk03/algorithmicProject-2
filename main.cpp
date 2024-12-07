@@ -139,9 +139,9 @@ int main(int argc, char *argv[])
     {
         // double alpha = parameters.get<double>("alpha", 1.0);
         // double beta = parameters.get<double>("beta", 1.0);
-        double alpha = 4.0;
-        double beta = 0.5;
-        int L = 1000;
+        double alpha = 5.0;
+        double beta = 0.8;
+        int L = 300;
 
         simulatedAnnealingOptimization<CDT>(cdt, steiner_points, regionPolygon, alpha, beta, L);
     }
@@ -156,7 +156,7 @@ int main(int argc, char *argv[])
         double alpha = 4.0;
         double beta = 0.5;
         int xi = 1;
-        int psi = 3;
+        int psi = 4;
         double lambda = 0.5;
         int kappa = 10;
         int L = 50;
@@ -189,32 +189,44 @@ int main(int argc, char *argv[])
 
     // Store steiner points
     pt::ptree steinerPointsXNode, steinerPointsYNode;
-    // for (auto vertex = cdt.finite_vertices_begin(); vertex != cdt.finite_vertices_end(); ++vertex)
-    // {
-    //     if (vertex->point().x() != pointsX[vertex->info()] || vertex->point().y() != pointsY[vertex->info()])
-    //     {
-    //         pt::ptree xNode, yNode;
-    //         xNode.put("", toFraction(vertex->point().x())); // Use fraction format
-    //         yNode.put("", toFraction(vertex->point().y())); // Use fraction format
-    //         steinerPointsXNode.push_back(std::make_pair("", xNode));
-    //         steinerPointsYNode.push_back(std::make_pair("", yNode));
-    //     }
-    // }
-    // outputData.add_child("steiner_points_x", steinerPointsXNode);
-    // outputData.add_child("steiner_points_y", steinerPointsYNode);
+    for (auto vertex = cdt.finite_vertices_begin(); vertex != cdt.finite_vertices_end(); ++vertex)
+    {
+        if (cdt.is_infinite(vertex))
+        {
+            continue; // Skip infinite vertices
+        }
 
-    // // Store edges
-    // pt::ptree edgesNode;
-    // for (auto edge = cdt.finite_edges_begin(); edge != cdt.finite_edges_end(); ++edge)
-    // {
-    //     int index1 = edge->first->vertex((edge->second + 1) % 3)->info();
-    //     int index2 = edge->first->vertex((edge->second + 2) % 3)->info();
-    //     pt::ptree edgeNode;
-    //     edgeNode.push_back(std::make_pair("", pt::ptree(std::to_string(index1))));
-    //     edgeNode.push_back(std::make_pair("", pt::ptree(std::to_string(index2))));
-    //     edgesNode.push_back(std::make_pair("", edgeNode));
-    // }
-    // outputData.add_child("edges", edgesNode);
+        if (vertex->info() < 0 )
+        {
+            std::cerr << "Invalid vertex info: " << vertex->info() << std::endl;
+            continue; // Skip vertices with invalid or uninitialized info
+        }
+
+        if (vertex->point().x() != pointsX[vertex->info()] || vertex->point().y() != pointsY[vertex->info()])
+        {
+            pt::ptree xNode, yNode;
+            xNode.put("", toFraction(vertex->point().x())); // Use fraction format
+            yNode.put("", toFraction(vertex->point().y())); // Use fraction format
+            steinerPointsXNode.push_back(std::make_pair("", xNode));
+            steinerPointsYNode.push_back(std::make_pair("", yNode));
+        }
+    }
+    outputData.add_child("steiner_points_x", steinerPointsXNode);
+    outputData.add_child("steiner_points_y", steinerPointsYNode);
+
+
+    // Store edges
+    pt::ptree edgesNode;
+    for (auto edge = cdt.finite_edges_begin(); edge != cdt.finite_edges_end(); ++edge)
+    {
+        int index1 = edge->first->vertex((edge->second + 1) % 3)->info();
+        int index2 = edge->first->vertex((edge->second + 2) % 3)->info();
+        pt::ptree edgeNode;
+        edgeNode.push_back(std::make_pair("", pt::ptree(std::to_string(index1))));
+        edgeNode.push_back(std::make_pair("", pt::ptree(std::to_string(index2))));
+        edgesNode.push_back(std::make_pair("", edgeNode));
+    }
+    outputData.add_child("edges", edgesNode);
 
     outputData.put("obtuse_count", obtuseCount);
     outputData.put("method", method);

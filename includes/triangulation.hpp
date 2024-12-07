@@ -601,10 +601,10 @@ int tryPointInsertion(TCDT &cdt, const TPoint &test_point, const Polygon_2 &regi
     if (circ)
     {
         // std::cout << "Checking for circumcenter" << std::endl;
-        if (checkForCircumcenter(temp_cdt, *face, regionPolygon) == false)
-        {
+        // if (checkForCircumcenter(temp_cdt, *face, regionPolygon) == false)
+        // {
             return std::numeric_limits<int>::max();
-        }
+        // }
     }
 
     temp_cdt.insert_no_flip(test_point); // Insert the test point into the copy
@@ -744,127 +744,127 @@ std::optional<Point> tryMergingObtuseTriangles(TCDT &cdt, const std::vector<TFac
 template <typename TCDT, typename TPoint>
 void localSearchOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const Polygon_2 &regionPolygon, int L)
 {
-    // int numVerticesBefore = cdt.number_of_vertices(); // Get current vertex count
-    // int steinerPointsNum = 0;
-    // bool steinerPointInserted = false;
+    int numVerticesBefore = cdt.number_of_vertices(); // Get current vertex count
+    int steinerPointsNum = 0;
+    bool steinerPointInserted = false;
 
-    // // Loop until no more Steiner points are inserted
-    // do
-    // {
-    //     steinerPointInserted = false; // Reset the flag for Steiner point insertion
-    //     int globalMinObtuseTriangles = std::numeric_limits<int>::max();
-    //     TPoint bestPointToInsert;
-    //     CDT::Face_handle bestTriangle;
-    //     bool edgeRemoval = false;
-    //     bool mergeEdgeRemoval = false;
-    //     std::vector<CDT::Face_handle> obtuseCluster;
+    // Loop until no more Steiner points are inserted
+    do
+    {
+        steinerPointInserted = false; // Reset the flag for Steiner point insertion
+        int globalMinObtuseTriangles = std::numeric_limits<int>::max();
+        TPoint bestPointToInsert;
+        CDT::Face_handle bestTriangle;
+        bool edgeRemoval = false;
+        bool mergeEdgeRemoval = false;
+        std::vector<CDT::Face_handle> obtuseCluster;
 
-    //     // Iterate over all triangles
-    //     for (auto face = cdt.finite_faces_begin(); face != cdt.finite_faces_end(); ++face)
-    //     {
-    //         TPoint p1 = face->vertex(0)->point();
-    //         TPoint p2 = face->vertex(1)->point();
-    //         TPoint p3 = face->vertex(2)->point();
+        // Iterate over all triangles
+        for (auto face = cdt.finite_faces_begin(); face != cdt.finite_faces_end(); ++face)
+        {
+            TPoint p1 = face->vertex(0)->point();
+            TPoint p2 = face->vertex(1)->point();
+            TPoint p3 = face->vertex(2)->point();
 
-    //         // Check if the triangle is obtuse
-    //         if (isObtuse<Point>(p1, p2, p3, regionPolygon))
-    //         {
-    //             // // Try circumcenter method
-    //             // TPoint circumcenter = CGAL::circumcenter(p1, p2, p3);
-    //             // int obtuseAfterCircumcenter = std::numeric_limits<int>::max();
-    //             // if (regionPolygon.bounded_side(circumcenter) != CGAL::ON_UNBOUNDED_SIDE)
-    //             // {
-    //             //     int obtuseAfterCircumcenter = tryPointInsertion<CDT, Point>(cdt, circumcenter, regionPolygon, false, true, std::nullopt, face);
-    //             // }
+            // Check if the triangle is obtuse
+            if (isObtuse<Point>(p1, p2, p3, regionPolygon))
+            {
+                // // Try circumcenter method
+                TPoint circumcenter = CGAL::circumcenter(p1, p2, p3);
+                int obtuseAfterCircumcenter = std::numeric_limits<int>::max();
+                if (regionPolygon.bounded_side(circumcenter) != CGAL::ON_UNBOUNDED_SIDE)
+                {
+                    int obtuseAfterCircumcenter = tryPointInsertion<CDT, Point>(cdt, circumcenter, regionPolygon, false, true, std::nullopt, face);
+                }
 
-    //             // Try midpoint of the longest edge
-    //             TPoint midpoint = getMidpointOfLongestEdge<Point>(p1, p2, p3);
-    //             int obtuseAfterMidpoint = tryPointInsertion<CDT, Point>(cdt, midpoint, regionPolygon);
+                // Try midpoint of the longest edge
+                TPoint midpoint = getMidpointOfLongestEdge<Point>(p1, p2, p3);
+                int obtuseAfterMidpoint = tryPointInsertion<CDT, Point>(cdt, midpoint, regionPolygon);
 
-    //             // Try centroid of the triangle
-    //             TPoint centroid = getCentroid<Point>(p1, p2, p3);
-    //             int obtuseAfterCentroid = tryPointInsertion<CDT, Point>(cdt, centroid, regionPolygon);
+                // Try centroid of the triangle
+                TPoint centroid = getCentroid<Point>(p1, p2, p3);
+                int obtuseAfterCentroid = tryPointInsertion<CDT, Point>(cdt, centroid, regionPolygon);
 
-    //             // Try projection of the triange
-    //             TPoint projection = getProjection<Point>(p1, p2, p3);
-    //             int obtuseAfterProjection = tryPointInsertion<CDT, Point>(cdt, projection, regionPolygon);
+                // Try projection of the triange
+                TPoint projection = getProjection<Point>(p1, p2, p3);
+                int obtuseAfterProjection = tryPointInsertion<CDT, Point>(cdt, projection, regionPolygon);
 
-    //             // Try merging obtuse triangles
-    //             obtuseCluster = collectNeighbouringObtuseTriangles<CDT, CDT::Face_handle>(cdt, face, regionPolygon);
-    //             int obtuseAfterMerge = std::numeric_limits<int>::max(); // Initialize to maximum value
+                // Try merging obtuse triangles
+                // obtuseCluster = collectNeighbouringObtuseTriangles<CDT, CDT::Face_handle>(cdt, face, regionPolygon);
+                int obtuseAfterMerge = std::numeric_limits<int>::max(); // Initialize to maximum value
 
-    //             TPoint mergeCentroid;
-    //             if (obtuseCluster.size() > 1)
-    //             {
-    //                 // std::optional<Point> mergeCentroid = tryMergingObtuseTriangles<CDT, CDT::Face_handle>(cdt, obtuseCluster);
-    //                 // if (mergeCentroid)
-    //                 // {
-    //                 //     obtuseAfterMerge = tryPointInsertion<CDT, Point>(cdt, *mergeCentroid, regionPolygon, true, false, obtuseCluster, face);
-    //                 // }
-    //                 // else
-    //                 // {
-    //                 obtuseAfterMerge = std::numeric_limits<int>::max();
-    //                 // }
-    //             }
+                TPoint mergeCentroid;
+                // if (obtuseCluster.size() > 1)
+                // {
+                //     std::optional<Point> mergeCentroid = tryMergingObtuseTriangles<CDT, CDT::Face_handle>(cdt, obtuseCluster);
+                //     if (mergeCentroid)
+                //     {
+                //         obtuseAfterMerge = tryPointInsertion<CDT, Point>(cdt, *mergeCentroid, regionPolygon, true, false, obtuseCluster, face);
+                //     }
+                //     else
+                //     {
+                    // obtuseAfterMerge = std::numeric_limits<int>::max();
+                //     }
+                // }
 
-    //             // Find the method that reduces the number of obtuse triangles the most
-    //             int minObtuseTrianglesForThisFace = std::min({obtuseAfterCircumcenter, obtuseAfterMidpoint, obtuseAfterCentroid, obtuseAfterProjection, obtuseAfterMerge});
+                // Find the method that reduces the number of obtuse triangles the most
+                int minObtuseTrianglesForThisFace = std::min({obtuseAfterCircumcenter, obtuseAfterMidpoint, obtuseAfterCentroid, obtuseAfterProjection, obtuseAfterMerge});
 
-    //             // Update the global minimum if needed
-    //             if (minObtuseTrianglesForThisFace < globalMinObtuseTriangles)
-    //             {
-    //                 globalMinObtuseTriangles = minObtuseTrianglesForThisFace;
+                // Update the global minimum if needed
+                if (minObtuseTrianglesForThisFace < globalMinObtuseTriangles)
+                {
+                    globalMinObtuseTriangles = minObtuseTrianglesForThisFace;
 
-    //                 // Determine the best point to insert based on the method
-    //                 if (minObtuseTrianglesForThisFace == obtuseAfterProjection)
-    //                 {
-    //                     bestPointToInsert = projection;
-    //                 }
-    //                 else if (minObtuseTrianglesForThisFace == obtuseAfterCircumcenter)
-    //                 {
-    //                     bestPointToInsert = circumcenter;
-    //                 }
-    //                 else if (minObtuseTrianglesForThisFace == obtuseAfterMidpoint)
-    //                 {
-    //                     bestPointToInsert = midpoint;
-    //                 }
-    //                 else if (minObtuseTrianglesForThisFace == obtuseAfterCentroid)
-    //                 {
-    //                     bestPointToInsert = centroid;
-    //                 }
-    //                 else if (minObtuseTrianglesForThisFace == obtuseAfterMerge)
-    //                 {
-    //                     bestPointToInsert = mergeCentroid;
-    //                 }
+                    // Determine the best point to insert based on the method
+                    if (minObtuseTrianglesForThisFace == obtuseAfterProjection)
+                    {
+                        bestPointToInsert = projection;
+                    }
+                    else if (minObtuseTrianglesForThisFace == obtuseAfterCircumcenter)
+                    {
+                        bestPointToInsert = circumcenter;
+                    }
+                    else if (minObtuseTrianglesForThisFace == obtuseAfterMidpoint)
+                    {
+                        bestPointToInsert = midpoint;
+                    }
+                    else if (minObtuseTrianglesForThisFace == obtuseAfterCentroid)
+                    {
+                        bestPointToInsert = centroid;
+                    }
+                    else if (minObtuseTrianglesForThisFace == obtuseAfterMerge)
+                    {
+                        bestPointToInsert = mergeCentroid;
+                    }
 
-    //                 bestTriangle = face;
-    //                 edgeRemoval = (minObtuseTrianglesForThisFace == obtuseAfterCircumcenter);
-    //                 mergeEdgeRemoval = (minObtuseTrianglesForThisFace == obtuseAfterMerge);
-    //             }
-    //         }
-    //     }
-    //     // Apply the best insertion if it reduces obtuse triangles
-    //     if (globalMinObtuseTriangles <= countObtuseTriangles<CDT>(cdt, regionPolygon))
-    //     {
+                    bestTriangle = face;
+                    edgeRemoval = (minObtuseTrianglesForThisFace == obtuseAfterCircumcenter);
+                    mergeEdgeRemoval = (minObtuseTrianglesForThisFace == obtuseAfterMerge);
+                }
+            }
+        }
+        // Apply the best insertion if it reduces obtuse triangles
+        if (globalMinObtuseTriangles <= countObtuseTriangles<CDT>(cdt, regionPolygon))
+        {
 
-    //         if (edgeRemoval)
-    //         {
-    //             checkForCircumcenter(cdt, bestTriangle, regionPolygon);
-    //         }
-    //         if (mergeEdgeRemoval)
-    //         {
-    //             processCluster(cdt, obtuseCluster);
-    //         }
-    //         // Insert the best point
-    //         steiner_points.push_back(bestPointToInsert);
-    //         CDT::Vertex_handle steiner_vh = cdt.insert_no_flip(bestPointToInsert);
-    //         steiner_vh->info() = numVerticesBefore + steiner_points.size() - 1;
-    //         steinerPointsNum++;          // Increment the number of Steiner points added
-    //         steinerPointInserted = true; // Mark that we inserted a point
-    //     }
-    // } while (steinerPointInserted);
+            if (edgeRemoval)
+            {
+                checkForCircumcenter(cdt, bestTriangle, regionPolygon);
+            }
+            if (mergeEdgeRemoval)
+            {
+                processCluster(cdt, obtuseCluster);
+            }
+            // Insert the best point
+            steiner_points.push_back(bestPointToInsert);
+            CDT::Vertex_handle steiner_vh = cdt.insert_no_flip(bestPointToInsert);
+            steiner_vh->info() = numVerticesBefore + steiner_points.size() - 1;
+            steinerPointsNum++;          // Increment the number of Steiner points added
+            steinerPointInserted = true; // Mark that we inserted a point
+        }
+    } while (steinerPointInserted);
 
-    // std::cout << "Steiner points added: " << steinerPointsNum << std::endl;
+    std::cout << "Steiner points added: " << steinerPointsNum << std::endl;
 }
 
 // Method 2: Insert Steiner points using simulated annealing optimization
@@ -939,6 +939,10 @@ void simulatedAnnealingOptimization(TCDT &cdt, std::vector<TPoint> &steiner_poin
                 }
                 case 5: // Merge
                 {
+                    TPoint projection = getProjection<Point>(p1, p2, p3);
+                    newObtuseTriangles = tryPointInsertion<CDT, Point>(cdt, projection, regionPolygon);
+                    selectedPoint = projection;
+                    break;
                     // obtuseCluster = collectNeighbouringObtuseTriangles<CDT, CDT::Face_handle>(temp_cdt, face, regionPolygon);
                     // if (obtuseCluster.size() > 1)
                     // {
@@ -986,12 +990,14 @@ void simulatedAnnealingOptimization(TCDT &cdt, std::vector<TPoint> &steiner_poin
                     std::cout << "Rejected new configuration using method " << method
                               << " with Energy: " << newEnergy << std::endl;
                 }
+                break;
             }
         }
 
         // Decrease the temperature
         T -= 1.0 / L;
         iteration++;
+
         std::cout << "Temperature reduced to: " << T << std::endl;
     }
 
@@ -1028,9 +1034,181 @@ double calculateRadiusToHeight(const TPoint &p1, const TPoint &p2, const TPoint 
     return R / height;
 }
 
-
-
+  
 // Method 3: Insert Steiner points using ant colony optimization
+// template <typename TCDT, typename TPoint>
+// void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const Polygon_2 &regionPolygon, double alpha, double beta, double xi, double psi, double lambda, int kappa, int L)
+// {
+//     int n = cdt.number_of_vertices(); // Number of input points
+//     int K = std::max(1, n / 4);       // Number of ants (at least n/4)
+
+//     // Initialize pheromone values for all methods (1 to 4)
+//     std::map<int, double> pheromoneTrails = {
+//         {1, 1.0}, // Projection
+//         {2, 1.0}, // Circumcenter
+//         {3, 1.0}, // Midpoint
+//         {4, 1.0}  // Merge
+//     };
+
+//     TCDT bestTriangulation = cdt; // Store the best overall triangulation
+//     double bestEnergy = alpha * countObtuseTriangles(cdt, regionPolygon) + beta * steiner_points.size();
+
+//     // Main ACO cycle
+//     for (int cycle = 1; cycle <= L; ++cycle)
+//     {
+//         std::cout << "Cycle " << cycle << "/" << L << std::endl;
+
+//         std::vector<double> antEnergies(K, bestEnergy);
+//         std::vector<TCDT> antTriangulations(K, cdt);
+//         std::map<int, double> pheromoneReinforcement = {{1, 0.0}, {2, 0.0}, {3, 0.0}, {4, 0.0}};
+
+//         for (int k = 0; k < K; ++k)
+//         {
+//             TCDT tempCDT = cdt; // Each ant works on its own temporary CDT
+//             double antEnergy = antEnergies[k];
+//             bool modificationOccurred = false;
+
+//             for (auto face = tempCDT.finite_faces_begin(); face != tempCDT.finite_faces_end(); ++face)
+//             {
+//                 TPoint p1 = face->vertex(0)->point();
+//                 TPoint p2 = face->vertex(1)->point();
+//                 TPoint p3 = face->vertex(2)->point();
+
+//                 if (isObtuse<TPoint>(p1, p2, p3, regionPolygon))
+//                 {
+//                     double rho = calculateRadiusToHeight(p1, p2, p3);
+
+//                     // Compute heuristic values ηsp
+//                     double etaProjection = std::max(0.0, (rho - 1) / rho);
+//                     double etaCircumcenter = rho / (2 + rho);
+//                     double etaMidpoint = std::max(0.0, (3 - 2 * rho) / 3);
+//                     double etaMerge = 1.0;
+
+//                     // Calculate probabilities Psp(k)
+//                     std::vector<double> probabilities = {
+//                         pheromoneTrails[1] * std::pow(etaProjection, psi),
+//                         pheromoneTrails[2] * std::pow(etaCircumcenter, psi),
+//                         pheromoneTrails[3] * std::pow(etaMidpoint, psi),
+//                         pheromoneTrails[4] * std::pow(etaMerge, psi)
+//                     };
+
+//                     // Normalize probabilities
+//                     double sumProbabilities = std::accumulate(probabilities.begin(), probabilities.end(), 0.0);
+//                     for (auto &prob : probabilities)
+//                     {
+//                         prob /= sumProbabilities;
+//                     }
+
+//                     // Select a method based on probabilities
+//                     double randomValue = ((double)rand() / RAND_MAX);
+//                     int chosenMethod = std::distance(probabilities.begin(), std::lower_bound(probabilities.begin(), probabilities.end(), randomValue));
+
+//                     TPoint selectedPoint;
+//                     switch (chosenMethod)
+//                     {
+//                     case 0: // Projection
+//                         selectedPoint = getProjection<TPoint>(p1, p2, p3);
+//                         break;
+//                     case 1: // Circumcenter
+//                         selectedPoint = getProjection<TPoint>(p1, p2, p3);
+//                         break;
+//                     case 2: // Midpoint
+//                         selectedPoint = getMidpointOfLongestEdge<TPoint>(p1, p2, p3);
+//                         break;
+//                     case 3: // Merge
+//                         selectedPoint = getProjection<TPoint>(p1, p2, p3); // Placeholder for merge
+//                         break;
+//                     default:
+//                         continue;
+//                     }
+
+//                     // Check if the point already exists
+//                     bool pointExists = false;
+//                     for (auto vertex = tempCDT.finite_vertices_begin(); vertex != tempCDT.finite_vertices_end(); ++vertex)
+//                     {
+//                         if (vertex->point() == selectedPoint)
+//                         {
+//                             pointExists = true;
+//                             break;
+//                         }
+//                     }
+
+//                     if (pointExists)
+//                     {
+//                         std::cerr << "Duplicate Steiner point detected, skipping insertion." << std::endl;
+//                         continue;
+//                     }
+
+//                     // Try to insert the point using tryPointInsertion
+//                     int newObtuseTriangles = tryPointInsertion(tempCDT, selectedPoint, regionPolygon);
+
+//                     if (newObtuseTriangles < countObtuseTriangles(tempCDT, regionPolygon))
+//                     {
+//                         try
+//                         {
+//                             tempCDT.insert(selectedPoint);
+//                             steiner_points.push_back(selectedPoint);
+//                         }
+//                         catch (const std::exception &e)
+//                         {
+//                             std::cerr << "Error during Steiner point insertion: " << e.what() << std::endl;
+//                             continue;
+//                         }
+
+//                         // Validate triangulation
+//                         if (!tempCDT.is_valid())
+//                         {
+//                             std::cerr << "Invalid triangulation detected, skipping this ant." << std::endl;
+//                             antEnergy = std::numeric_limits<double>::max();
+//                             break; // Stop processing this ant
+//                         }
+
+//                     }
+//                         // Update energy
+//                         double newEnergy = alpha * newObtuseTriangles + beta * steiner_points.size();
+//                         if (newEnergy < antEnergy)
+//                         {
+//                             antEnergy = newEnergy;
+//                             pheromoneReinforcement[chosenMethod + 1] += 1.0 / (1.0 + alpha * newObtuseTriangles + beta * steiner_points.size());
+//                         }
+//                         // modificationOccurred = true;
+//                         // break; // Move to the next ant after modification
+//                         break;
+//                 }
+//             }
+
+//             // Save the best triangulation for this ant
+//             if (antEnergy < antEnergies[k])
+//             {
+//                 antEnergies[k] = antEnergy;
+//                 antTriangulations[k] = tempCDT;
+//             }
+//         }
+
+//         // Update pheromone trails
+//         for (auto &pheromone : pheromoneTrails)
+//         {
+//             int method = pheromone.first;
+//             pheromone.second = (1 - lambda) * pheromone.second + pheromoneReinforcement[method];
+//         }
+
+//         // Save the best triangulation across all ants
+//         for (int k = 0; k < K; ++k)
+//         {
+//             if (antEnergies[k] < bestEnergy)
+//             {
+//                 bestEnergy = antEnergies[k];
+//                 bestTriangulation = antTriangulations[k];
+//             }
+//         }
+
+//         cdt = bestTriangulation; // Update the CDT with the best triangulation
+//         std::cout << "Best energy for cycle " << cycle << ": " << bestEnergy << std::endl;
+//     }
+
+//     std::cout << "Final best energy: " << bestEnergy << std::endl;
+// }
+
 
 template <typename TCDT, typename TPoint>
 void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const Polygon_2 &regionPolygon, double alpha, double beta, double xi, double psi, double lambda, int kappa, int L)
@@ -1038,15 +1216,20 @@ void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const
     int n = cdt.number_of_vertices(); // Number of input points
     int K = std::max(1, n / 4);       // Number of ants (at least n/4)
 
-    // Initialize pheromone values for all methods (1 to 4)
+    int vertexIndex = 0; 
+    for (auto vertex = cdt.finite_vertices_begin(); vertex != cdt.finite_vertices_end(); ++vertex)
+    {
+        vertex->info() = vertexIndex++;
+    }   
+
+    // Initialize pheromone values for all methods (1 to 3)
     std::map<int, double> pheromoneTrails = {
         {1, 1.0}, // Projection
         {2, 1.0}, // Circumcenter
-        {3, 1.0}, // Midpoint
-        {4, 1.0}  // Merge
+        {3, 1.0}  // Midpoint
     };
 
-    TCDT bestTriangulation = cdt;      // Store the best overall triangulation
+    TCDT bestTriangulation = cdt; // Store the best overall triangulation
     double bestEnergy = alpha * countObtuseTriangles(cdt, regionPolygon) + beta * steiner_points.size();
 
     // Main ACO cycle
@@ -1054,140 +1237,344 @@ void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const
     {
         std::cout << "Cycle " << cycle << "/" << L << std::endl;
 
-        // Store temporary triangulations and energies for all ants
-        std::vector<TCDT> antTriangulations(K, cdt);
         std::vector<double> antEnergies(K, bestEnergy);
+        std::vector<TCDT> antTriangulations(K, cdt);
+        std::map<int, double> pheromoneReinforcement = {{1, 0.0}, {2, 0.0}, {3, 0.0}};
+        std::unordered_map<typename TCDT::Face_handle, int> modifiedFaces; // Map to track which ant modified which face
+        std::unordered_map<int, typename TCDT::Face_handle> antModifiedFace; // Map ant to the face it modified
 
-        // Track pheromone reinforcements for each method
-        std::map<int, double> pheromoneReinforcement = {{1, 0.0}, {2, 0.0}, {3, 0.0}, {4, 0.0}};
+        // Collect obtuse triangles
+        std::vector<typename TCDT::Face_handle> obtuseTriangles;
+        for (auto face = cdt.finite_faces_begin(); face != cdt.finite_faces_end(); ++face)
+        {
+            TPoint p1 = face->vertex(0)->point();
+            TPoint p2 = face->vertex(1)->point();
+            TPoint p3 = face->vertex(2)->point();
+            if (isObtuse<TPoint>(p1, p2, p3, regionPolygon))
+            {
+                obtuseTriangles.push_back(face);
+            }
+        }
 
         for (int k = 0; k < K; ++k)
         {
-            TCDT &antTriangulation = antTriangulations[k];
-            double antEnergy = antEnergies[k];
-            bool processedTriangle = false; // Track if the ant has processed a triangle
+            TCDT tempCDT = cdt; // Each ant works on the shared CDT
+            double antEnergy = bestEnergy;
 
-            for (auto face = antTriangulation.finite_faces_begin(); face != antTriangulation.finite_faces_end(); ++face)
+            if (obtuseTriangles.empty())
+                continue; // No obtuse triangles left to process
+
+            // Select a random obtuse triangle
+            typename TCDT::Face_handle randomTriangle = obtuseTriangles[rand() % obtuseTriangles.size()];
+            TPoint p1 = randomTriangle->vertex(0)->point();
+            TPoint p2 = randomTriangle->vertex(1)->point();
+            TPoint p3 = randomTriangle->vertex(2)->point();
+
+            double rho = calculateRadiusToHeight(p1, p2, p3);
+
+            // Compute heuristic values ηsp
+            double etaProjection = std::max(0.0, (rho - 1) / rho);
+            double etaCircumcenter = rho / (2 + rho);
+            double etaMidpoint = std::max(0.0, (3 - 2 * rho) / 3);
+
+            // Calculate probabilities Psp(k)
+            std::vector<double> probabilities = {
+                pheromoneTrails[1] * std::pow(etaProjection, psi),
+                pheromoneTrails[2] * std::pow(etaCircumcenter, psi),
+                pheromoneTrails[3] * std::pow(etaMidpoint, psi)
+            };
+
+            // Normalize probabilities
+            double sumProbabilities = std::accumulate(probabilities.begin(), probabilities.end(), 0.0);
+            for (auto &prob : probabilities)
             {
-                TPoint p1 = face->vertex(0)->point();
-                TPoint p2 = face->vertex(1)->point();
-                TPoint p3 = face->vertex(2)->point();
+                prob /= sumProbabilities;
+            }
 
-                if (isObtuse<TPoint>(p1, p2, p3, regionPolygon))
+            // Select a method based on probabilities
+            double randomValue = ((double)rand() / RAND_MAX);
+            int chosenMethod = std::distance(probabilities.begin(), std::lower_bound(probabilities.begin(), probabilities.end(), randomValue));
+            std::cout << "Ant " << k << " selected method " << chosenMethod << std::endl;
+            TPoint selectedPoint;
+            switch (chosenMethod)
+            {
+            case 0: // Projection
+                selectedPoint = getProjection<TPoint>(p1, p2, p3);
+                break;
+            case 1: // Circumcenter
+                selectedPoint = CGAL::circumcenter(p1, p2, p3);
+                break;
+            case 2: // Midpoint
+                selectedPoint = getMidpointOfLongestEdge<TPoint>(p1, p2, p3);
+                break;
+             case 3: // Projection
+                selectedPoint = getProjection<TPoint>(p1, p2, p3);
+                break;
+            
+            default:
+                continue;
+            }
+
+            int newObtuseTriangles = tryPointInsertion(tempCDT, selectedPoint, regionPolygon);
+
+            if (newObtuseTriangles <= countObtuseTriangles(tempCDT, regionPolygon))
+            {
+                try
                 {
-                    double rho = calculateRadiusToHeight(p1, p2, p3);
-
-                    // Compute heuristic values ηsp
-                    double etaProjection = std::max(0.0, (rho - 1) / rho);
-                    double etaCircumcenter = rho / (2 + rho);
-                    double etaMidpoint = std::max(0.0, (3 - 2 * rho) / 3);
-                    double etaMerge = 1.0;
-
-                    // Calculate probabilities Psp(k)
-                    std::vector<double> probabilities = {
-                        pheromoneTrails[1] * std::pow(etaProjection, psi),
-                        pheromoneTrails[2] * std::pow(etaCircumcenter, psi),
-                        pheromoneTrails[3] * std::pow(etaMidpoint, psi),
-                        pheromoneTrails[4] * std::pow(etaMerge, psi)
-                    };
-
-                    // Normalize probabilities
-                    double sumProbabilities = std::accumulate(probabilities.begin(), probabilities.end(), 0.0);
-                    for (auto &prob : probabilities)
-                    {
-                        prob /= sumProbabilities;
-                    }
-
-                    // Select a method based on probabilities
-                    double randomValue = ((double)rand() / RAND_MAX);
-                    int chosenMethod = std::distance(probabilities.begin(), std::lower_bound(probabilities.begin(), probabilities.end(), randomValue));
-
-                    TPoint selectedPoint;
-                    switch (chosenMethod)
-                    {
-                    case 0: // Projection
-                        selectedPoint = getProjection<TPoint>(p1, p2, p3);
-                        break;
-                    case 1: // Circumcenter
-                        // selectedPoint = CGAL::circumcenter(p1, p2, p3);
-                        selectedPoint = getProjection<TPoint>(p1, p2, p3);
-                        break;
-                    case 2: // Midpoint
-                        selectedPoint = getMidpointOfLongestEdge<TPoint>(p1, p2, p3);
-                        break;
-                    case 3: // Merge
-                    {
-                        selectedPoint = getProjection<TPoint>(p1, p2, p3);
-                        // std::vector<CDT::Face_handle> obtuseCluster = collectNeighbouringObtuseTriangles<TCDT, CDT::Face_handle>(antTriangulation, face, regionPolygon);
-                        // if (obtuseCluster.size() > 1)
-                        // {
-                        //     auto mergeResult = tryMergingObtuseTriangles<TCDT, CDT::Face_handle>(antTriangulation, obtuseCluster);
-                        //     if (mergeResult.has_value())
-                        //     {
-                        //         selectedPoint = *mergeResult;
-                        //     }
-                        // }
-                        break;
-                    }
-                    default:
-                        continue;
-                    }
-
-                    // if (!selectedPoint.is_valid())
-                    // {
-                    //     continue; // Skip invalid selections
-                    // }
-
-                    // Insert the Steiner point and update energy
-                    antTriangulation.insert(selectedPoint);
+                    auto vh = tempCDT.insert_no_flip(selectedPoint);
+                    vh->info() = vertexIndex++;
                     steiner_points.push_back(selectedPoint);
+                    antModifiedFace[k] = randomTriangle; // Record the modified face
+                    modifiedFaces[randomTriangle] = k;  // Map the face to the modifying ant
+                }
+                catch (const std::exception &e)
+                {
+                    std::cerr << "Error during Steiner point insertion: " << e.what() << std::endl;
+                    continue;
+                }
 
-                    int newObtuseTriangles = countObtuseTriangles(antTriangulation, regionPolygon);
-                    antEnergy = alpha * newObtuseTriangles + beta * steiner_points.size();
+                // Remove non-obtuse triangles from the list
+                obtuseTriangles.erase(std::remove_if(obtuseTriangles.begin(), obtuseTriangles.end(),
+                                                     [&](typename TCDT::Face_handle face)
+                                                     {
+                                                         TPoint p1 = face->vertex(0)->point();
+                                                         TPoint p2 = face->vertex(1)->point();
+                                                         TPoint p3 = face->vertex(2)->point();
+                                                         return !isObtuse<TPoint>(p1, p2, p3, regionPolygon);
+                                                     }),
+                                      obtuseTriangles.end());
 
-                    if (antEnergy < antEnergies[k])
-                    {
-                        antEnergies[k] = antEnergy;
-
-                        // Pheromone reinforcement for this method
-                        pheromoneReinforcement[chosenMethod + 1] += 1.0 / (1.0 + alpha * newObtuseTriangles + beta * steiner_points.size());
-                    }
-
-                    // processedTriangle = true; // Mark this triangle as processed
-                    // break;                   // Exit loop after processing one triangle
+                // Update energy
+                double newEnergy = alpha * newObtuseTriangles + beta * steiner_points.size();
+                if (newEnergy < antEnergy)
+                {
+                    antEnergy = newEnergy;
+                    pheromoneReinforcement[chosenMethod + 1] += 1.0 / (1.0 + alpha * newObtuseTriangles + beta * steiner_points.size());
                 }
             }
 
-            // // Skip to the next ant if no triangle was processed
-            // if (!processedTriangle)
-            // {
-            //     continue;
-            // }
+            antEnergies[k] = antEnergy;
+            antTriangulations[k] = tempCDT;
         }
 
-        // Update pheromone trails after processing all ants
+        // Resolve conflicts and merge
+        TCDT mergedCDT = cdt;
+        std::unordered_set<int> successfulAnts;
+
+        for (const auto &[face, ant] : modifiedFaces)
+        {
+            if (successfulAnts.find(ant) == successfulAnts.end()) // If not already merged
+            {
+                successfulAnts.insert(ant);
+                mergedCDT = antTriangulations[ant];
+            }
+        }
+
+        // Update the best CDT and energy
+        cdt = mergedCDT;
+        bestEnergy = *std::min_element(antEnergies.begin(), antEnergies.end());
+
+        // Update pheromone trails
         for (auto &pheromone : pheromoneTrails)
         {
             int method = pheromone.first;
             pheromone.second = (1 - lambda) * pheromone.second + pheromoneReinforcement[method];
         }
 
-        // Resolve conflicts and save the best triangulation of this cycle
-        for (int k = 0; k < K; ++k)
-        {
-            if (antEnergies[k] < bestEnergy)
-            {
-                bestEnergy = antEnergies[k];
-                bestTriangulation = antTriangulations[k];
-            }
-        }
-
         std::cout << "Best energy for cycle " << cycle << ": " << bestEnergy << std::endl;
     }
 
-    cdt = bestTriangulation; // Update the original CDT with the best triangulation
     std::cout << "Final best energy: " << bestEnergy << std::endl;
 }
+
+
+
+
+// template <typename TCDT, typename TPoint>
+// void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const Polygon_2 &regionPolygon, double alpha, double beta, double xi, double psi, double lambda, int kappa, int L)
+// {
+//     int n = cdt.number_of_vertices(); // Number of input points
+//     int K = std::max(1, n / 4);       // Number of ants (at least n/4)
+
+//     // Initialize `info` for all initial vertices
+//     int vertexIndex = 0; 
+//     for (auto vertex = cdt.finite_vertices_begin(); vertex != cdt.finite_vertices_end(); ++vertex)
+//     {
+//         vertex->info() = vertexIndex++;
+//     }
+
+//     // Initialize pheromone values for all methods (1 to 3)
+//     std::map<int, double> pheromoneTrails = {
+//         {1, 1.0}, // Projection
+//         {2, 1.0}, // Circumcenter
+//         {3, 1.0}  // Midpoint
+//     };
+
+//     TCDT bestTriangulation = cdt; // Store the best overall triangulation
+//     double bestEnergy = alpha * countObtuseTriangles(cdt, regionPolygon) + beta * steiner_points.size();
+
+//     int steinerIndex = vertexIndex; // Start indexing Steiner points after input points
+
+//     // Main ACO cycle
+//     for (int cycle = 1; cycle <= L; ++cycle)
+//     {
+//         std::cout << "Cycle " << cycle << "/" << L << std::endl;
+
+//         std::vector<double> antEnergies(K, bestEnergy);
+//         std::vector<TCDT> antTriangulations(K, cdt);
+//         std::map<int, double> pheromoneReinforcement = {{1, 0.0}, {2, 0.0}, {3, 0.0}};
+//         std::unordered_map<typename TCDT::Face_handle, int> modifiedFaces; // Map to track which ant modified which face
+//         std::unordered_map<int, typename TCDT::Face_handle> antModifiedFace; // Map ant to the face it modified
+
+//         // Collect obtuse triangles
+//         std::vector<typename TCDT::Face_handle> obtuseTriangles;
+//         for (auto face = cdt.finite_faces_begin(); face != cdt.finite_faces_end(); ++face)
+//         {
+//             TPoint p1 = face->vertex(0)->point();
+//             TPoint p2 = face->vertex(1)->point();
+//             TPoint p3 = face->vertex(2)->point();
+//             if (isObtuse<TPoint>(p1, p2, p3, regionPolygon))
+//             {
+//                 obtuseTriangles.push_back(face);
+//             }
+//         }
+
+//         for (int k = 0; k < K; ++k)
+//         {
+//             TCDT tempCDT = cdt; // Each ant works on the shared CDT
+//             double antEnergy = bestEnergy;
+
+//             if (obtuseTriangles.empty())
+//                 continue; // No obtuse triangles left to process
+
+//             // Select a random obtuse triangle
+//             typename TCDT::Face_handle randomTriangle = obtuseTriangles[rand() % obtuseTriangles.size()];
+//             TPoint p1 = randomTriangle->vertex(0)->point();
+//             TPoint p2 = randomTriangle->vertex(1)->point();
+//             TPoint p3 = randomTriangle->vertex(2)->point();
+
+//             double rho = calculateRadiusToHeight(p1, p2, p3);
+
+//             // Compute heuristic values ηsp
+//             double etaProjection = std::max(0.0, (rho - 1) / rho);
+//             double etaCircumcenter = rho / (2 + rho);
+//             double etaMidpoint = std::max(0.0, (3 - 2 * rho) / 3);
+
+//             // Calculate probabilities Psp(k)
+//             std::vector<double> probabilities = {
+//                 pheromoneTrails[1] * std::pow(etaProjection, psi),
+//                 pheromoneTrails[2] * std::pow(etaCircumcenter, psi),
+//                 pheromoneTrails[3] * std::pow(etaMidpoint, psi)
+//             };
+
+//             // Normalize probabilities
+//             double sumProbabilities = std::accumulate(probabilities.begin(), probabilities.end(), 0.0);
+//             for (auto &prob : probabilities)
+//             {
+//                 prob /= sumProbabilities;
+//             }
+
+//             // Select a method based on probabilities
+//             double randomValue = ((double)rand() / RAND_MAX);
+//             int chosenMethod = std::distance(probabilities.begin(), std::lower_bound(probabilities.begin(), probabilities.end(), randomValue));
+//             std::cout << "Ant " << k << " selected method " << chosenMethod << std::endl;
+//             TPoint selectedPoint;
+//             switch (chosenMethod)
+//             {
+//             case 0: // Projection
+//                 selectedPoint = getProjection<TPoint>(p1, p2, p3);
+//                 break;
+//             case 1: // Circumcenter
+//                 selectedPoint = CGAL::circumcenter(p1, p2, p3);
+//                 break;
+//             case 2: // Midpoint
+//                 selectedPoint = getMidpointOfLongestEdge<TPoint>(p1, p2, p3);
+//                 break;
+//             default:
+//                 continue;
+//             }
+
+//             int newObtuseTriangles = tryPointInsertion(tempCDT, selectedPoint, regionPolygon);
+
+//             if (newObtuseTriangles <= countObtuseTriangles(tempCDT, regionPolygon))
+//             {
+//                 try
+//                 {
+//                     auto vh = tempCDT.insert_no_flip(selectedPoint);
+//                     vh->info() = steinerIndex++; // Assign a unique index to the new Steiner point
+//                     steiner_points.push_back(selectedPoint);
+//                     antModifiedFace[k] = randomTriangle; // Record the modified face
+//                     modifiedFaces[randomTriangle] = k;  // Map the face to the modifying ant
+//                 }
+//                 catch (const std::exception &e)
+//                 {
+//                     std::cerr << "Error during Steiner point insertion: " << e.what() << std::endl;
+//                     continue;
+//                 }
+
+//                 // Remove non-obtuse triangles from the list
+//                 obtuseTriangles.erase(std::remove_if(obtuseTriangles.begin(), obtuseTriangles.end(),
+//                                                      [&](typename TCDT::Face_handle face)
+//                                                      {
+//                                                          TPoint p1 = face->vertex(0)->point();
+//                                                          TPoint p2 = face->vertex(1)->point();
+//                                                          TPoint p3 = face->vertex(2)->point();
+//                                                          return !isObtuse<TPoint>(p1, p2, p3, regionPolygon);
+//                                                      }),
+//                                       obtuseTriangles.end());
+
+//                 // Update energy
+//                 double newEnergy = alpha * newObtuseTriangles + beta * steiner_points.size();
+//                 if (newEnergy < antEnergy)
+//                 {
+//                     antEnergy = newEnergy;
+//                     pheromoneReinforcement[chosenMethod + 1] += 1.0 / (1.0 + alpha * newObtuseTriangles + beta * steiner_points.size());
+//                 }
+//             }
+
+//             antEnergies[k] = antEnergy;
+//             antTriangulations[k] = tempCDT;
+//         }
+
+//         // Resolve conflicts and merge
+//         TCDT mergedCDT = cdt;
+//         std::unordered_set<int> successfulAnts;
+
+//         for (const auto &[face, ant] : modifiedFaces)
+//         {
+//             if (successfulAnts.find(ant) == successfulAnts.end()) // If not already merged
+//             {
+//                 successfulAnts.insert(ant);
+//                 for (auto vertex = antTriangulations[ant].finite_vertices_begin(); vertex != antTriangulations[ant].finite_vertices_end(); ++vertex)
+//                 {
+//                     // Add vertex to the merged CDT
+//                     auto locFace = mergedCDT.locate(vertex->point());
+//                     if (locFace == typename TCDT::Face_handle()) // If not already in the triangulation
+//                     {
+//                         auto vh = mergedCDT.insert(vertex->point());
+//                         vh->info() = vertex->info(); // Preserve info
+//                     }
+//                 }
+//             }
+//         }
+
+//         // Update the best CDT and energy
+//         cdt = mergedCDT;
+//         bestEnergy = *std::min_element(antEnergies.begin(), antEnergies.end());
+
+//         // Update pheromone trails
+//         for (auto &pheromone : pheromoneTrails)
+//         {
+//             int method = pheromone.first;
+//             pheromone.second = (1 - lambda) * pheromone.second + pheromoneReinforcement[method];
+//         }
+
+//         std::cout << "Best energy for cycle " << cycle << ": " << bestEnergy << std::endl;
+//     }
+
+//     std::cout << "Final best energy: " << bestEnergy << std::endl;
+// }
+
 
 
 ////////////////////////////////////////
