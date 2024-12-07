@@ -805,7 +805,7 @@ void localSearchOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, con
             // Insert the best point
             steiner_points.push_back(bestPointToInsert);
             CDT::Vertex_handle steiner_vh = cdt.insert_no_flip(bestPointToInsert);
-            steiner_vh->info() = numVerticesBefore + steiner_points.size() - 1;
+            steiner_vh->info() =  -1;//numVerticesBefore + steiner_points.size() - 1;
             steinerPointsNum++;          // Increment the number of Steiner points added
             steinerPointInserted = true; // Mark that we inserted a point
         }
@@ -919,7 +919,7 @@ void simulatedAnnealingOptimization(TCDT &cdt, std::vector<TPoint> &steiner_poin
                     
                     steiner_points.push_back(selectedPoint);
                     CDT::Vertex_handle steiner_vh = cdt.insert_no_flip(selectedPoint);
-                    steiner_vh->info() = numVerticesBefore + steiner_points.size() - 1;
+                    steiner_vh->info() = -1;//numVerticesBefore + steiner_points.size() - 1;
                     currentEnergy = newEnergy;
 
                     // std::cout << "Accepted new configuration using method " << method
@@ -1119,10 +1119,11 @@ void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const
                     // else if(chosenMethod != 3 && chosenMethod != 1) {
                     if(regionPolygon.bounded_side(selectedPoint) != CGAL::ON_UNBOUNDED_SIDE ) {
                             auto vh = tempCDT.insert_no_flip(selectedPoint);
-                            steiner_points.push_back(selectedPoint);
-                            vh->info() = n + steiner_points.size() -1 ;
+                            if(vh != tempCDT.infinite_vertex()) {
+                                vh->info() = -1;//n + steiner_points.size() -1 ;
                             antModifiedFace[k] = randomTriangle; // Record the modified face
                             modifiedFaces[randomTriangle] = k;  // Map the face to the modifying ant
+                            }// steiner_points.push_back(selectedPoint);
                     }
                     // }
                 }
@@ -1181,6 +1182,12 @@ void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const
         }
 
         // std::cout << "Best energy for cycle " << cycle << ": " << bestEnergy << std::endl;
+    }
+
+    for(auto vertex = cdt.finite_vertices_begin(); vertex != cdt.finite_vertices_end(); ++vertex) {
+        if(vertex->info() == -1) {
+            steiner_points.push_back(vertex->point());
+        }
     }
 
     std::cout << "Final best energy: " << bestEnergy << std::endl;

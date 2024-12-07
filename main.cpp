@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
     std::string instanceUid = inputData.get<std::string>("instance_uid");
     int numPoints = inputData.get<int>("num_points");
     bool delaunay = inputData.get<bool>("delaunay", true);
-    std::string method = inputData.get<std::string>("method", "ant");
+    std::string method = inputData.get<std::string>("method", "sa");
 
     std::vector<int> pointsX, pointsY, regionBoundary;
     for (const auto &item : inputData.get_child("points_x"))
@@ -186,20 +186,23 @@ int main(int argc, char *argv[])
             continue; // Skip infinite vertices
         }
 
-        if (vertex->info() < 0 )
-        {
-            std::cout << "Vertex info is negative" << std::endl;
-            continue; // Skip vertices with invalid or uninitialized info
-        }
+        // if (vertex->info() < 0 )
+        // {
+        //     std::cout << "Vertex info is negative" << std::endl;
+        //     continue; // Skip vertices with invalid or uninitialized info
+        // }
 
-        if (vertex->point().x() != pointsX[vertex->info()] || vertex->point().y() != pointsY[vertex->info()])
-        {
+        // if (vertex->point().x() != pointsX[vertex->info()] || vertex->point().y() != pointsY[vertex->info()])
+        // {
+        if(vertex->info() == -1) {
+
             pt::ptree xNode, yNode;
             xNode.put("", toFraction(vertex->point().x())); // Use fraction format
             yNode.put("", toFraction(vertex->point().y())); // Use fraction format
             steinerPointsXNode.push_back(std::make_pair("", xNode));
             steinerPointsYNode.push_back(std::make_pair("", yNode));
         }
+        // }
     }
     outputData.add_child("steiner_points_x", steinerPointsXNode);
     outputData.add_child("steiner_points_y", steinerPointsYNode);
