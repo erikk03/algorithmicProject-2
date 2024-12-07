@@ -729,7 +729,7 @@ void localSearchOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, con
                 int obtuseAfterCircumcenter = std::numeric_limits<int>::max();
                 if (regionPolygon.bounded_side(circumcenter) != CGAL::ON_UNBOUNDED_SIDE)
                 {
-                    int obtuseAfterCircumcenter = tryPointInsertion<CDT, Point>(cdt, circumcenter, regionPolygon, false, true, std::nullopt, face);
+                    obtuseAfterCircumcenter = tryPointInsertion<CDT, Point>(cdt, circumcenter, regionPolygon, false, true, std::nullopt, face);
                 }
 
                 // Try midpoint of the longest edge
@@ -1175,7 +1175,6 @@ void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const
         {3, 1.0}  // Midpoint
     };
 
-    TCDT bestTriangulation = cdt; // Store the best overall triangulation
     TCDT bestTriangulation = cdt; // Store the best overall triangulation
     double bestEnergy = alpha * countObtuseTriangles(cdt, regionPolygon) + beta * steiner_points.size();
 

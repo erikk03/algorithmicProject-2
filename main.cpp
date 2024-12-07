@@ -222,18 +222,6 @@ int main(int argc, char *argv[])
         edgesNode.push_back(std::make_pair("", edgeNode));
     }
     outputData.add_child("edges", edgesNode);
-    // Store edges
-    pt::ptree edgesNode;
-    for (auto edge = cdt.finite_edges_begin(); edge != cdt.finite_edges_end(); ++edge)
-    {
-        int index1 = edge->first->vertex((edge->second + 1) % 3)->info();
-        int index2 = edge->first->vertex((edge->second + 2) % 3)->info();
-        pt::ptree edgeNode;
-        edgeNode.push_back(std::make_pair("", pt::ptree(std::to_string(index1))));
-        edgeNode.push_back(std::make_pair("", pt::ptree(std::to_string(index2))));
-        edgesNode.push_back(std::make_pair("", edgeNode));
-    }
-    outputData.add_child("edges", edgesNode);
 
     outputData.put("obtuse_count", obtuseCount);
     outputData.put("method", method);
