@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
     std::string instanceUid = inputData.get<std::string>("instance_uid");
     int numPoints = inputData.get<int>("num_points");
     bool delaunay = inputData.get<bool>("delaunay", true);
-    std::string method = inputData.get<std::string>("method", "ant");
+    std::string method = inputData.get<std::string>("method", "local");
 
     std::vector<int> pointsX, pointsY, regionBoundary;
     for (const auto &item : inputData.get_child("points_x"))
@@ -90,11 +90,6 @@ int main(int argc, char *argv[])
         regionPolygon.push_back(Point(pointsX[idx], pointsY[idx]));
     }
 
-    // std::cout <<"Region boundary:\n";
-    // for(auto it = regionPolygon.vertices_begin(); it != regionPolygon.vertices_end(); ++it) {
-    //     std::cout << it->x() << " " << it->y() << std::endl;
-    // }
-
     // Use the CDT defined in triangulation.hpp
     CDT cdt;
 
@@ -120,17 +115,18 @@ int main(int argc, char *argv[])
                               Point(pointsX[constraint[1]], pointsY[constraint[1]]));
     }
 
-    if (delaunay)
+    std::vector<Point> steiner_points;
+
+    if (delaunay == false)
     {
-        std::cout << "Ensuring Delaunay triangulation..." << std::endl;
-        // cdt.make_delaunay();
+        localSearchOptimization<CDT>(cdt, steiner_points, regionPolygon, L);
+        std::cout << "Delaunay false given. CDT is from first project" << std::endl;
     }
 
     std::cout << "Triangulation done. Starting optimization with method: " << method << "..." << std::endl;
     std::cout << "Number of all triangles at start: " << cdt.number_of_faces() << std::endl;
     std::cout << "Number of obtuse triangles at start: " << countObtuseTriangles<CDT>(cdt, regionPolygon) << std::endl;
 
-    std::vector<Point> steiner_points;
     if (method == "local")
     {
         localSearchOptimization<CDT>(cdt, steiner_points, regionPolygon, L);
@@ -160,7 +156,6 @@ int main(int argc, char *argv[])
         double lambda = 0.5;
         int kappa = 10;
         int L = 50;
-
 
         antColonyOptimization<CDT>(cdt, steiner_points, regionPolygon, alpha, beta, xi, psi, lambda, kappa, L);
     }
@@ -215,6 +210,18 @@ int main(int argc, char *argv[])
     outputData.add_child("steiner_points_y", steinerPointsYNode);
 
 
+    // Store edges
+    pt::ptree edgesNode;
+    for (auto edge = cdt.finite_edges_begin(); edge != cdt.finite_edges_end(); ++edge)
+    {
+        int index1 = edge->first->vertex((edge->second + 1) % 3)->info();
+        int index2 = edge->first->vertex((edge->second + 2) % 3)->info();
+        pt::ptree edgeNode;
+        edgeNode.push_back(std::make_pair("", pt::ptree(std::to_string(index1))));
+        edgeNode.push_back(std::make_pair("", pt::ptree(std::to_string(index2))));
+        edgesNode.push_back(std::make_pair("", edgeNode));
+    }
+    outputData.add_child("edges", edgesNode);
     // Store edges
     pt::ptree edgesNode;
     for (auto edge = cdt.finite_edges_begin(); edge != cdt.finite_edges_end(); ++edge)
