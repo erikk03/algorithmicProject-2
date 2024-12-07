@@ -438,7 +438,7 @@ bool processCluster(CDT &cdt, const std::vector<CDT::Face_handle> &cluster)
     CDT::Vertex_handle steinerHandle = cdt.insert(centroid);
     if (steinerHandle == nullptr)
     {
-        // std::cerr << "Failed to insert Steiner point. Aborting.\n";
+        // std::cerr << " Failed to insert Steiner point. Aborting.\n";
         return false;
     }
     // std::cerr << "Inserted Steiner point at " << centroid << ".\n";
