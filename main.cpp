@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
     std::string instanceUid = inputData.get<std::string>("instance_uid");
     int numPoints = inputData.get<int>("num_points");
     bool delaunay = inputData.get<bool>("delaunay", true);
-    std::string method = inputData.get<std::string>("method", "local");
+    std::string method = inputData.get<std::string>("method", "ant");
 
     std::vector<int> pointsX, pointsY, regionBoundary;
     for (const auto &item : inputData.get_child("points_x"))
@@ -81,8 +81,7 @@ int main(int argc, char *argv[])
     {
         parameters = *params;
     }
-    int L = parameters.get<int>("L", 100);
-
+   
     // Create the region boundary polygon
     Polygon_2 regionPolygon;
     for (int idx : regionBoundary)
@@ -92,6 +91,7 @@ int main(int argc, char *argv[])
 
     // Use the CDT defined in triangulation.hpp
     CDT cdt;
+    
 
     // Insert points into the triangulation and assign index info
     for (int i = 0; i < numPoints; ++i)
@@ -117,8 +117,10 @@ int main(int argc, char *argv[])
 
     std::vector<Point> steiner_points;
 
+   
     if (delaunay == false)
     {
+        int L = parameters.get<int>("L", 100);
         localSearchOptimization<CDT>(cdt, steiner_points, regionPolygon, L);
         std::cout << "Delaunay false given. CDT is from first project" << std::endl;
     }
@@ -129,33 +131,26 @@ int main(int argc, char *argv[])
 
     if (method == "local")
     {
+        int L = parameters.get<int>("L", 100);
         localSearchOptimization<CDT>(cdt, steiner_points, regionPolygon, L);
     }
     else if (method == "sa")
     {
-        // double alpha = parameters.get<double>("alpha", 1.0);
-        // double beta = parameters.get<double>("beta", 1.0);
-        double alpha = 5.0;
-        double beta = 0.8;
-        int L = 300;
-
+        double alpha = parameters.get<double>("alpha", 5.0);
+        double beta = parameters.get<double>("beta", 0.2);
+        int L = parameters.get<int>("L", 1000);
+       
         simulatedAnnealingOptimization<CDT>(cdt, steiner_points, regionPolygon, alpha, beta, L);
     }
     else if (method == "ant")
     {
-        // double alpha = parameters.get<double>("alpha", 1.0);
-        // double beta = parameters.get<double>("beta", 1.0);
-        // double xi = parameters.get<double>("xi", 1.0);
-        // double psi = parameters.get<double>("psi", 1.0);
-        // double lambda = parameters.get<double>("lambda", 0.5);
-        // int kappa = parameters.get<int>("kappa", 10);
-        double alpha = 4.0;
-        double beta = 0.5;
-        int xi = 1;
-        int psi = 4;
-        double lambda = 0.5;
-        int kappa = 10;
-        int L = 50;
+        double alpha = parameters.get<double>("alpha", 5.0);
+        double beta = parameters.get<double>("beta", 0.2);
+        double xi = parameters.get<double>("xi", 1.0);
+        double psi = parameters.get<double>("psi", 5.0);
+        double lambda = parameters.get<double>("lambda", 0.9);
+        int kappa = parameters.get<int>("kappa", 10);
+        int L = parameters.get<int>("L", 50);
 
         antColonyOptimization<CDT>(cdt, steiner_points, regionPolygon, alpha, beta, xi, psi, lambda, kappa, L);
     }
@@ -193,7 +188,7 @@ int main(int argc, char *argv[])
 
         if (vertex->info() < 0 )
         {
-            std::cerr << "Invalid vertex info: " << vertex->info() << std::endl;
+            std::cout << "Vertex info is negative" << std::endl;
             continue; // Skip vertices with invalid or uninitialized info
         }
 
