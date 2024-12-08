@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
 {
     if (argc < 5 || std::string(argv[1]) != "-i" || std::string(argv[3]) != "-o")
     {
-        std::cerr << "Usage: ./opt_triangulation -i /path/to/input.json -o /path/to/output.json" << std::endl;
+        std::cerr << "Usage: ./executable -i /path/to/input.json -o /path/to/output.json" << std::endl;
         return 1;
     }
 
@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
     {
         parameters = *params;
     }
-   
+
     // Create the region boundary polygon
     Polygon_2 regionPolygon;
     for (int idx : regionBoundary)
@@ -91,7 +91,6 @@ int main(int argc, char *argv[])
 
     // Use the CDT defined in triangulation.hpp
     CDT cdt;
-    
 
     // Insert points into the triangulation and assign index info
     for (int i = 0; i < numPoints; ++i)
@@ -117,7 +116,6 @@ int main(int argc, char *argv[])
 
     std::vector<Point> steiner_points;
 
-   
     if (delaunay == false)
     {
         int L = parameters.get<int>("L", 100);
@@ -139,7 +137,7 @@ int main(int argc, char *argv[])
         double alpha = parameters.get<double>("alpha", 5.0);
         double beta = parameters.get<double>("beta", 0.2);
         int L = parameters.get<int>("L", 1000);
-       
+
         simulatedAnnealingOptimization<CDT>(cdt, steiner_points, regionPolygon, alpha, beta, L);
     }
     else if (method == "ant")
@@ -194,7 +192,8 @@ int main(int argc, char *argv[])
 
         // if (vertex->point().x() != pointsX[vertex->info()] || vertex->point().y() != pointsY[vertex->info()])
         // {
-        if(vertex->info() == -1) {
+        if (vertex->info() == -1)
+        {
 
             pt::ptree xNode, yNode;
             xNode.put("", toFraction(vertex->point().x())); // Use fraction format
@@ -206,7 +205,6 @@ int main(int argc, char *argv[])
     }
     outputData.add_child("steiner_points_x", steinerPointsXNode);
     outputData.add_child("steiner_points_y", steinerPointsYNode);
-
 
     // Store edges
     pt::ptree edgesNode;

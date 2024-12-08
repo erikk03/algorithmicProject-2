@@ -805,7 +805,7 @@ void localSearchOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, con
             // Insert the best point
             steiner_points.push_back(bestPointToInsert);
             CDT::Vertex_handle steiner_vh = cdt.insert_no_flip(bestPointToInsert);
-            steiner_vh->info() =  -1;//numVerticesBefore + steiner_points.size() - 1;
+            steiner_vh->info() = -1;     // numVerticesBefore + steiner_points.size() - 1;
             steinerPointsNum++;          // Increment the number of Steiner points added
             steinerPointInserted = true; // Mark that we inserted a point
         }
@@ -823,9 +823,8 @@ void simulatedAnnealingOptimization(TCDT &cdt, std::vector<TPoint> &steiner_poin
     int obtuseTriangles = countObtuseTriangles(cdt, regionPolygon);
     int steinerPoints = steiner_points.size();
     double currentEnergy = alpha * obtuseTriangles + beta * steinerPoints;
-    double R = 0.05; // Acceptance probability threshold
+    double R = 0.05;                                  // Acceptance probability threshold
     int numVerticesBefore = cdt.number_of_vertices(); // Get current vertex count
-    
 
     std::cout << "Initial Energy: " << currentEnergy << std::endl;
 
@@ -845,7 +844,7 @@ void simulatedAnnealingOptimization(TCDT &cdt, std::vector<TPoint> &steiner_poin
                 // Randomly select a method (1 to 5)
                 int method = 1 + rand() % 5;
                 int newObtuseTriangles = std::numeric_limits<int>::max();
-                TPoint selectedPoint;        
+                TPoint selectedPoint;
                 std::vector<CDT::Face_handle> obtuseCluster;
                 bool processOriginal = false;
 
@@ -857,9 +856,9 @@ void simulatedAnnealingOptimization(TCDT &cdt, std::vector<TPoint> &steiner_poin
                     newObtuseTriangles = std::numeric_limits<int>::max();
                     if (regionPolygon.bounded_side(circumcenter) != CGAL::ON_UNBOUNDED_SIDE)
                     {
-                            newObtuseTriangles = tryPointInsertion<CDT, Point>(cdt, circumcenter, regionPolygon, false, true, std::nullopt, face);
-                            selectedPoint = circumcenter;
-                            processOriginal = true;
+                        newObtuseTriangles = tryPointInsertion<CDT, Point>(cdt, circumcenter, regionPolygon, false, true, std::nullopt, face);
+                        selectedPoint = circumcenter;
+                        processOriginal = true;
                     }
                     break;
                 }
@@ -893,7 +892,7 @@ void simulatedAnnealingOptimization(TCDT &cdt, std::vector<TPoint> &steiner_poin
                     {
                         newObtuseTriangles = tryPointInsertion<CDT, Point>(cdt, mergeCentroid, regionPolygon, true, false, obtuseCluster, face);
                     }
-                    }
+                }
                 default:
                     break;
                 }
@@ -916,10 +915,9 @@ void simulatedAnnealingOptimization(TCDT &cdt, std::vector<TPoint> &steiner_poin
                         processCluster(cdt, obtuseCluster);
                     }
 
-                    
                     steiner_points.push_back(selectedPoint);
                     CDT::Vertex_handle steiner_vh = cdt.insert_no_flip(selectedPoint);
-                    steiner_vh->info() = -1;//numVerticesBefore + steiner_points.size() - 1;
+                    steiner_vh->info() = -1; // numVerticesBefore + steiner_points.size() - 1;
                     currentEnergy = newEnergy;
 
                     // std::cout << "Accepted new configuration using method " << method
@@ -980,11 +978,11 @@ void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const
     int n = cdt.number_of_vertices(); // Number of input points
     int K = std::max(1, n / 4);       // Number of ants (at least n/4)
 
-    int vertexIndex = 0; 
+    int vertexIndex = 0;
     for (auto vertex = cdt.finite_vertices_begin(); vertex != cdt.finite_vertices_end(); ++vertex)
     {
         vertex->info() = vertexIndex++;
-    }   
+    }
 
     // Initialize pheromone values for all methods (1 to 3)
     std::map<int, double> pheromoneTrails = {
@@ -992,7 +990,6 @@ void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const
         {2, 1.0}, // Circumcenter
         {3, 1.0}  // Midpoint
     };
-
 
     TCDT bestTriangulation = cdt; // Store the best overall triangulation
     double bestEnergy = alpha * countObtuseTriangles(cdt, regionPolygon) + beta * steiner_points.size();
@@ -1005,7 +1002,7 @@ void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const
         std::vector<double> antEnergies(K, bestEnergy);
         std::vector<TCDT> antTriangulations(K, cdt);
         std::map<int, double> pheromoneReinforcement = {{1, 0.0}, {2, 0.0}, {3, 0.0}};
-        std::unordered_map<typename TCDT::Face_handle, int> modifiedFaces; // Map to track which ant modified which face
+        std::unordered_map<typename TCDT::Face_handle, int> modifiedFaces;   // Map to track which ant modified which face
         std::unordered_map<int, typename TCDT::Face_handle> antModifiedFace; // Map ant to the face it modified
 
         // Collect obtuse triangles
@@ -1021,7 +1018,6 @@ void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const
             }
         }
 
-    
         for (int k = 0; k < K; ++k)
         {
             TCDT tempCDT = cdt; // Copy the current triangulation for the ant
@@ -1047,8 +1043,7 @@ void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const
             std::vector<double> probabilities = {
                 pheromoneTrails[1] * std::pow(etaProjection, psi),
                 pheromoneTrails[2] * std::pow(etaCircumcenter, psi),
-                pheromoneTrails[3] * std::pow(etaMidpoint, psi)
-            };
+                pheromoneTrails[3] * std::pow(etaMidpoint, psi)};
 
             // Normalize probabilities
             double sumProbabilities = std::accumulate(probabilities.begin(), probabilities.end(), 0.0);
@@ -1080,29 +1075,35 @@ void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const
                 obtuseCluster = collectNeighbouringObtuseTriangles<CDT, CDT::Face_handle>(tempCDT, randomTriangle, regionPolygon);
                 mergeCentroid = tryMergingObtuseTriangles<CDT, CDT::Face_handle>(tempCDT, obtuseCluster);
                 break;
-            
+
             default:
                 continue;
             }
 
             if (chosenMethod == 3)
             {
-                if(obtuseCluster.size() > 2) {
+                if (obtuseCluster.size() > 2)
+                {
                     newObtuseTriangles = tryPointInsertion<CDT, Point>(tempCDT, selectedPoint, regionPolygon, true, false, obtuseCluster, randomTriangle);
                 }
-                else {
+                else
+                {
                     continue;
                 }
             }
-            else if(chosenMethod == 1) {
-                if(regionPolygon.bounded_side(selectedPoint) != CGAL::ON_UNBOUNDED_SIDE) {
+            else if (chosenMethod == 1)
+            {
+                if (regionPolygon.bounded_side(selectedPoint) != CGAL::ON_UNBOUNDED_SIDE)
+                {
                     newObtuseTriangles = tryPointInsertion(tempCDT, selectedPoint, regionPolygon, false, true, std::nullopt, randomTriangle);
                 }
-                else{
+                else
+                {
                     continue;
                 }
             }
-            else if(chosenMethod != 3 && chosenMethod != 1){  
+            else if (chosenMethod != 3 && chosenMethod != 1)
+            {
                 newObtuseTriangles = tryPointInsertion(tempCDT, selectedPoint, regionPolygon);
             }
 
@@ -1110,20 +1111,24 @@ void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const
             {
                 try
                 {
-                    if(chosenMethod == 3){
+                    if (chosenMethod == 3)
+                    {
                         processCluster(tempCDT, obtuseCluster);
                     }
-                    else if(chosenMethod == 1 ){
+                    else if (chosenMethod == 1)
+                    {
                         checkForCircumcenter(tempCDT, randomTriangle, regionPolygon);
                     }
                     // else if(chosenMethod != 3 && chosenMethod != 1) {
-                    if(regionPolygon.bounded_side(selectedPoint) != CGAL::ON_UNBOUNDED_SIDE ) {
-                            auto vh = tempCDT.insert_no_flip(selectedPoint);
-                            if(vh != tempCDT.infinite_vertex()) {
-                                vh->info() = -1;//n + steiner_points.size() -1 ;
+                    if (regionPolygon.bounded_side(selectedPoint) != CGAL::ON_UNBOUNDED_SIDE)
+                    {
+                        auto vh = tempCDT.insert_no_flip(selectedPoint);
+                        if (vh != tempCDT.infinite_vertex())
+                        {
+                            vh->info() = -1;                     // n + steiner_points.size() -1 ;
                             antModifiedFace[k] = randomTriangle; // Record the modified face
-                            modifiedFaces[randomTriangle] = k;  // Map the face to the modifying ant
-                            }// steiner_points.push_back(selectedPoint);
+                            modifiedFaces[randomTriangle] = k;   // Map the face to the modifying ant
+                        } // steiner_points.push_back(selectedPoint);
                     }
                     // }
                 }
@@ -1184,8 +1189,10 @@ void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const
         // std::cout << "Best energy for cycle " << cycle << ": " << bestEnergy << std::endl;
     }
 
-    for(auto vertex = cdt.finite_vertices_begin(); vertex != cdt.finite_vertices_end(); ++vertex) {
-        if(vertex->info() == -1) {
+    for (auto vertex = cdt.finite_vertices_begin(); vertex != cdt.finite_vertices_end(); ++vertex)
+    {
+        if (vertex->info() == -1)
+        {
             steiner_points.push_back(vertex->point());
         }
     }
@@ -1193,10 +1200,6 @@ void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const
     std::cout << "Final best energy: " << bestEnergy << std::endl;
     std::cout << "Total Steiner Points: " << steiner_points.size() << std::endl;
 }
-
-
-
-
 
 ////////////////////////////////////////
 //////////// FLIP FUNCTIONS ////////////
