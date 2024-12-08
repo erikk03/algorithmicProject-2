@@ -989,6 +989,7 @@ void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const
         {1, 1.0}, // Projection
         {2, 1.0}, // Circumcenter
         {3, 1.0}  // Midpoint
+        // {4, 1.0}  // Merge
     };
 
     TCDT bestTriangulation = cdt; // Store the best overall triangulation
@@ -1017,10 +1018,10 @@ void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const
                 obtuseTriangles.push_back(face);
             }
         }
-
+        TCDT tempCDT = cdt;
         for (int k = 0; k < K; ++k)
         {
-            TCDT tempCDT = cdt; // Copy the current triangulation for the ant
+             // Copy the current triangulation for the ant
             double antEnergy = bestEnergy;
 
             if (obtuseTriangles.empty())
@@ -1034,16 +1035,25 @@ void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const
 
             double rho = calculateRadiusToHeight(p1, p2, p3);
 
+            std::vector<CDT::Face_handle> obtuseCluster;
+            // obtuseCluster = collectNeighbouringObtuseTriangles<CDT, CDT::Face_handle>(tempCDT, randomTriangle, regionPolygon);
+
             // Compute heuristic values ηsp
+            // double etaMerge = 0.0;
             double etaProjection = std::max(0.0, (rho - 1) / rho);
             double etaCircumcenter = rho / (2 + rho);
             double etaMidpoint = std::max(0.0, (3 - 2 * rho) / 3);
+            // if(obtuseCluster.size() > 2) {
+            //     etaMerge = 1.0;
+            // }
+
 
             // Calculate probabilities Psp(k)
             std::vector<double> probabilities = {
                 pheromoneTrails[1] * std::pow(etaProjection, psi),
                 pheromoneTrails[2] * std::pow(etaCircumcenter, psi),
                 pheromoneTrails[3] * std::pow(etaMidpoint, psi)};
+                // pheromoneTrails[4] * std::pow(etaMerge, psi)};
 
             // Normalize probabilities
             double sumProbabilities = std::accumulate(probabilities.begin(), probabilities.end(), 0.0);
@@ -1059,7 +1069,6 @@ void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const
             TPoint selectedPoint;
             TPoint mergeCentroid;
             int newObtuseTriangles = countObtuseTriangles(tempCDT, regionPolygon);
-            std::vector<CDT::Face_handle> obtuseCluster;
             switch (chosenMethod)
             {
             case 0: // Projection
@@ -1159,24 +1168,11 @@ void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const
             }
 
             antEnergies[k] = antEnergy;
-            antTriangulations[k] = tempCDT;
+            break; // after modifying one obtuse triangle
         }
 
-        // Resolve conflicts and merge
-        TCDT mergedCDT = cdt;
-        std::unordered_set<int> successfulAnts;
-
-        for (const auto &[face, ant] : modifiedFaces)
-        {
-            if (successfulAnts.find(ant) == successfulAnts.end()) // If not already merged
-            {
-                successfulAnts.insert(ant);
-                mergedCDT = antTriangulations[ant];
-            }
-        }
-
-        // Update the best CDT and energy
-        cdt = mergedCDT;
+        // updated CDT with changes and best energy of cycle
+        cdt = tempCDT;
         bestEnergy = *std::min_element(antEnergies.begin(), antEnergies.end());
 
         // Update pheromone trails
