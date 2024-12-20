@@ -697,8 +697,9 @@ int tryPointInsertion(TCDT &cdt, const TPoint &test_point, const Polygon_2 &regi
 
 // Method 1: Insert Steiner points using local search optimization
 template <typename TCDT, typename TPoint>
-void localSearchOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const Polygon_2 &regionPolygon, int L)
+void localSearchOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const Polygon_2 &regionPolygon, int L, int i)
 {
+    int info = i;
     int numVerticesBefore = cdt.number_of_vertices(); // Get current vertex count
     int steinerPointsNum = 0;
     bool steinerPointInserted = false;
@@ -805,18 +806,18 @@ void localSearchOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, con
             // Insert the best point
             steiner_points.push_back(bestPointToInsert);
             CDT::Vertex_handle steiner_vh = cdt.insert_no_flip(bestPointToInsert);
-            steiner_vh->info() = -1;     // numVerticesBefore + steiner_points.size() - 1;
+            steiner_vh->info() = info++; // numVerticesBefore + steiner_points.size() - 1;
             steinerPointsNum++;          // Increment the number of Steiner points added
             steinerPointInserted = true; // Mark that we inserted a point
         }
     } while (steinerPointInserted);
 
-    std::cout << "Steiner points added: " << steinerPointsNum << std::endl;
+    std::cout << "Steiner points added: " << steinerPointsNum - 1 << std::endl;
 }
 
 // Method 2: Insert Steiner points using simulated annealing optimization
 template <typename TCDT, typename TPoint>
-void simulatedAnnealingOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const Polygon_2 &regionPolygon, double alpha, double beta, int L)
+void simulatedAnnealingOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const Polygon_2 &regionPolygon, double alpha, double beta, int L, int i)
 {
     // Initialize temperature and compute initial energy
     double T = 1.0; // Initial temperature
@@ -825,6 +826,7 @@ void simulatedAnnealingOptimization(TCDT &cdt, std::vector<TPoint> &steiner_poin
     double currentEnergy = alpha * obtuseTriangles + beta * steinerPoints;
     double R = 0.05;                                  // Acceptance probability threshold
     int numVerticesBefore = cdt.number_of_vertices(); // Get current vertex count
+    int info = i;
 
     std::cout << "Initial Energy: " << currentEnergy << std::endl;
 
@@ -917,7 +919,7 @@ void simulatedAnnealingOptimization(TCDT &cdt, std::vector<TPoint> &steiner_poin
 
                     steiner_points.push_back(selectedPoint);
                     CDT::Vertex_handle steiner_vh = cdt.insert_no_flip(selectedPoint);
-                    steiner_vh->info() = -1; // numVerticesBefore + steiner_points.size() - 1;
+                    steiner_vh->info() = info++; // numVerticesBefore + steiner_points.size() - 1;
                     currentEnergy = newEnergy;
 
                     // std::cout << "Accepted new configuration using method " << method
@@ -940,7 +942,7 @@ void simulatedAnnealingOptimization(TCDT &cdt, std::vector<TPoint> &steiner_poin
     }
 
     std::cout << "Final Energy: " << currentEnergy << std::endl;
-    std::cout << "Total Steiner Points: " << steiner_points.size() << std::endl;
+    std::cout << "Total Steiner Points: " << steiner_points.size() - 1 << std::endl;
 }
 
 template <typename TPoint>
@@ -973,8 +975,9 @@ double calculateRadiusToHeight(const TPoint &p1, const TPoint &p2, const TPoint 
 
 // Method 3: Insert Steiner points using Ant Colony Optimization
 template <typename TCDT, typename TPoint>
-void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const Polygon_2 &regionPolygon, double alpha, double beta, double xi, double psi, double lambda, int kappa, int L)
+void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const Polygon_2 &regionPolygon, double alpha, double beta, double xi, double psi, double lambda, int kappa, int L, int i)
 {
+    int info = i;
     int n = cdt.number_of_vertices(); // Number of input points
     int K = std::max(1, n / 4);       // Number of ants (at least n/4)
 
@@ -1021,7 +1024,7 @@ void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const
         TCDT tempCDT = cdt;
         for (int k = 0; k < K; ++k)
         {
-             // Copy the current triangulation for the ant
+            // Copy the current triangulation for the ant
             double antEnergy = bestEnergy;
 
             if (obtuseTriangles.empty())
@@ -1047,13 +1050,12 @@ void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const
             //     etaMerge = 1.0;
             // }
 
-
             // Calculate probabilities Psp(k)
             std::vector<double> probabilities = {
                 pheromoneTrails[1] * std::pow(etaProjection, psi),
                 pheromoneTrails[2] * std::pow(etaCircumcenter, psi),
                 pheromoneTrails[3] * std::pow(etaMidpoint, psi)};
-                // pheromoneTrails[4] * std::pow(etaMerge, psi)};
+            // pheromoneTrails[4] * std::pow(etaMerge, psi)};
 
             // Normalize probabilities
             double sumProbabilities = std::accumulate(probabilities.begin(), probabilities.end(), 0.0);
@@ -1134,7 +1136,7 @@ void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const
                         auto vh = tempCDT.insert_no_flip(selectedPoint);
                         if (vh != tempCDT.infinite_vertex())
                         {
-                            vh->info() = -1;                     // n + steiner_points.size() -1 ;
+                            vh->info() = info++;                 // n + steiner_points.size() -1 ;
                             antModifiedFace[k] = randomTriangle; // Record the modified face
                             modifiedFaces[randomTriangle] = k;   // Map the face to the modifying ant
                         } // steiner_points.push_back(selectedPoint);
@@ -1187,7 +1189,7 @@ void antColonyOptimization(TCDT &cdt, std::vector<TPoint> &steiner_points, const
 
     for (auto vertex = cdt.finite_vertices_begin(); vertex != cdt.finite_vertices_end(); ++vertex)
     {
-        if (vertex->info() == -1)
+        if (vertex->info() > i)
         {
             steiner_points.push_back(vertex->point());
         }

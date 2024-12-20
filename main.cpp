@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
     std::string instanceUid = inputData.get<std::string>("instance_uid");
     int numPoints = inputData.get<int>("num_points");
     bool delaunay = inputData.get<bool>("delaunay", true);
-    std::string method = inputData.get<std::string>("method", "ant");
+    std::string method = inputData.get<std::string>("method", "local");
 
     std::vector<int> pointsX, pointsY, regionBoundary;
     for (const auto &item : inputData.get_child("points_x"))
@@ -93,10 +93,11 @@ int main(int argc, char *argv[])
     CDT cdt;
 
     // Insert points into the triangulation and assign index info
-    for (int i = 0; i < numPoints; ++i)
+    int info = 0;
+    for (info = 0; info < numPoints; ++info)
     {
-        CDT::Vertex_handle vh = cdt.insert(Point(pointsX[i], pointsY[i]));
-        vh->info() = i; // Assign index to the vertex
+        CDT::Vertex_handle vh = cdt.insert(Point(pointsX[info], pointsY[info]));
+        vh->info() = info; // Assign index to the vertex
     }
 
     // Insert constraints for the region boundary
@@ -119,7 +120,7 @@ int main(int argc, char *argv[])
     if (delaunay == false)
     {
         int L = parameters.get<int>("L", 100);
-        localSearchOptimization<CDT>(cdt, steiner_points, regionPolygon, L);
+        localSearchOptimization<CDT>(cdt, steiner_points, regionPolygon, L, info - 1);
         std::cout << "Delaunay false given. CDT is from first project" << std::endl;
     }
 
@@ -130,7 +131,7 @@ int main(int argc, char *argv[])
     if (method == "local")
     {
         int L = parameters.get<int>("L", 100);
-        localSearchOptimization<CDT>(cdt, steiner_points, regionPolygon, L);
+        localSearchOptimization<CDT>(cdt, steiner_points, regionPolygon, L, info - 1);
     }
     else if (method == "sa")
     {
@@ -138,7 +139,7 @@ int main(int argc, char *argv[])
         double beta = parameters.get<double>("beta", 0.2);
         int L = parameters.get<int>("L", 1000);
 
-        simulatedAnnealingOptimization<CDT>(cdt, steiner_points, regionPolygon, alpha, beta, L);
+        simulatedAnnealingOptimization<CDT>(cdt, steiner_points, regionPolygon, alpha, beta, L, info - 1);
     }
     else if (method == "ant")
     {
@@ -150,7 +151,7 @@ int main(int argc, char *argv[])
         int kappa = parameters.get<int>("kappa", 10);
         int L = parameters.get<int>("L", 50);
 
-        antColonyOptimization<CDT>(cdt, steiner_points, regionPolygon, alpha, beta, xi, psi, lambda, kappa, L);
+        antColonyOptimization<CDT>(cdt, steiner_points, regionPolygon, alpha, beta, xi, psi, lambda, kappa, L, info - 1);
     }
     else
     {
@@ -184,7 +185,7 @@ int main(int argc, char *argv[])
             continue; // Skip infinite vertices
         }
 
-        if (vertex->info() == -1)
+        if (vertex->info() > info - 1)
         {
 
             pt::ptree xNode, yNode;
@@ -193,12 +194,23 @@ int main(int argc, char *argv[])
             steinerPointsXNode.push_back(std::make_pair("", xNode));
             steinerPointsYNode.push_back(std::make_pair("", yNode));
         }
-        
     }
     outputData.add_child("steiner_points_x", steinerPointsXNode);
     outputData.add_child("steiner_points_y", steinerPointsYNode);
 
     // Store edges
+    int currentInfoIndex = 0; // Start from 0 or any desired starting index
+
+    for (auto vertex = cdt.finite_vertices_begin(); vertex != cdt.finite_vertices_end(); ++vertex)
+    {
+        if (cdt.is_infinite(vertex))
+        {
+            continue;
+        }
+
+        vertex->info() = currentInfoIndex++; // Assign info and increment the index
+    }
+
     pt::ptree edgesNode;
     for (auto edge = cdt.finite_edges_begin(); edge != cdt.finite_edges_end(); ++edge)
     {
